@@ -95,6 +95,8 @@ function guardJavaFinalizationBeforeConfiguration(
   databaseFactory: SqliteDatabaseFactory = createDatabase,
 ): boolean {
   const { db } = databaseFactory(dbPath, { readOnly: true, open: false });
+  let guardError: unknown;
+  let hasGuardError = false;
   try {
     db.openConnection?.();
     const schemaTable = db.prepare(
@@ -123,8 +125,19 @@ function guardJavaFinalizationBeforeConfiguration(
     }
 
     return assertOrdinaryJavaFinalization(db) === 'complete';
+  } catch (error) {
+    guardError = error;
+    hasGuardError = true;
+    throw error;
   } finally {
-    if (db.open) db.close();
+    if (db.open) {
+      try {
+        db.close();
+      } catch (error) {
+        // A lifecycle rejection must not be replaced by its read-only cleanup.
+        if (!hasGuardError) throw error;
+      }
+    }
   }
 }
 
@@ -162,6 +175,12 @@ export class DatabaseConnection {
   private dbPath: string;
   private backend: SqliteBackend;
   private javaFinalizationToken?: JavaFinalizationToken;
+  /** Internal evaluation sink; production composition leaves it absent. */
+  onJavaFinalizationCommit?: (
+    receipt: import('./sqlite-adapter').SqliteCommitReceipt & {
+      statements: Array<{ state: string; changes: number }>;
+    },
+  ) => void;
 
   private constructor(
     db: SqliteDatabase,
@@ -274,34 +293,51 @@ export class DatabaseConnection {
   }
 
   /** The sole private marker writer commits after all other finalization work. */
-  commitJavaFinalizationComplete(): { changes: number } {
+  private commitJavaFinalizationState(state: 'complete' | 'failed'): { changes: number } {
     const token = this.javaFinalizationToken;
     if (!token) {
       throw new Error('Java finalization marker writes require a run/pass token.');
     }
-    const receipt = this.db.transaction(() => this.db.prepare(
-      'UPDATE project_metadata SET value = ? ' +
-      'WHERE key = ? AND value = ? AND EXISTS (' +
-      'SELECT 1 FROM project_metadata AS identity_facts ' +
-      'WHERE identity_facts.key = ? AND identity_facts.value = ?' +
-      ') AND EXISTS (' +
-      'SELECT 1 FROM project_metadata AS run_facts ' +
-      'WHERE run_facts.key = ? AND run_facts.value = ?' +
-      ') AND EXISTS (' +
-      'SELECT 1 FROM project_metadata AS pass_facts ' +
-      'WHERE pass_facts.key = ? AND pass_facts.value = ?)',
-    ).run(
-      'complete', JAVA_FINALIZATION_KEY, 'required',
-      JAVA_FACT_GENERATION_KEY, JAVA_FACT_GENERATION_V1,
-      JAVA_FINALIZATION_RUN_KEY, token.runId,
-      JAVA_FINALIZATION_PASS_KEY, token.passId,
-    ))();
+    const receipt = this.db.transaction((transactionObserver?: import('./sqlite-adapter').SqliteTransactionObserver) => {
+      const result = this.db.prepare(
+        'UPDATE project_metadata SET value = ? ' +
+        'WHERE key = ? AND value = ? AND EXISTS (' +
+        'SELECT 1 FROM project_metadata AS identity_facts ' +
+        'WHERE identity_facts.key = ? AND identity_facts.value = ?' +
+        ') AND EXISTS (' +
+        'SELECT 1 FROM project_metadata AS run_facts ' +
+        'WHERE run_facts.key = ? AND run_facts.value = ?' +
+        ') AND EXISTS (' +
+        'SELECT 1 FROM project_metadata AS pass_facts ' +
+        'WHERE pass_facts.key = ? AND pass_facts.value = ?)',
+      ).run(
+        state, JAVA_FINALIZATION_KEY, 'required',
+        JAVA_FACT_GENERATION_KEY, JAVA_FACT_GENERATION_V1,
+        JAVA_FINALIZATION_RUN_KEY, token.runId,
+        JAVA_FINALIZATION_PASS_KEY, token.passId,
+      );
+      if (transactionObserver) {
+        transactionObserver.observeCommit([{ state, changes: result.changes }], (receipt) => {
+          // Internal evaluation evidence only; this is not a public observer API.
+          this.onJavaFinalizationCommit?.(receipt);
+        });
+      }
+      return result;
+    })();
     if (receipt.changes !== 1) {
       throw new Error(
         'Java finalization marker must change exactly one required row for this run/pass.',
       );
     }
     return { changes: receipt.changes };
+  }
+
+  commitJavaFinalizationComplete(): { changes: number } {
+    return this.commitJavaFinalizationState('complete');
+  }
+
+  commitJavaFinalizationFailed(): { changes: number } {
+    return this.commitJavaFinalizationState('failed');
   }
 
   /**

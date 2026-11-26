@@ -42,7 +42,7 @@ import {
   initGrammars,
   loadGrammarsForLanguages,
 } from './extraction';
-import { javaPreflightError } from './extraction/java-write-preflight';
+import { javaPreflightError, normalizeJavaWritePlan } from './extraction/java-write-preflight';
 import {
   ReferenceResolver,
   createResolver,
@@ -1138,6 +1138,7 @@ export class CodeGraph {
     return graph;
   }
 
+  /** Internal committed-reader composition; not a package/public graph entry. */
   private async indexExternalEngine(engine: 'rust' | 'rust-hybrid', options: IndexOptions): Promise<IndexResult> {
     return this.indexExternalEngineForEvaluation(engine, options, {});
   }
@@ -1148,7 +1149,14 @@ export class CodeGraph {
     options: IndexOptions,
     dependencies: {
       openFinalizationGraph?: typeof CodeGraph.openForJavaFinalization;
+      openFinalizationVerifier?: typeof DatabaseConnection.openForJavaFinalizationVerification;
+      openFinalizationFailureWriter?: typeof DatabaseConnection.openForJavaFinalization;
+      runIndexer?: typeof runRustIndexerBorrowingGate;
+      acquireReplacementGate?: typeof acquireExclusiveReplacementGate;
+      prepareExternalIndex?: () => void;
       rebuildQueue?: typeof rebuildEmbeddingQueue;
+      releaseReplacementGate?: () => Promise<void>;
+      reopenDatabase?: () => void;
       markFailed?: (token: ReturnType<typeof issueJavaFinalizationToken>) => void;
     },
   ): Promise<IndexResult> {
@@ -1156,24 +1164,31 @@ export class CodeGraph {
       // A completed batch is not a replacement barrier: the local worker must
       // exit and close its DB/vec0 handles before the Rust child may promote.
       await EmbeddingRunner.shutdownDatabase(getDatabasePath(this.projectRoot));
-      const replacementGate = await acquireExclusiveReplacementGate(getDatabasePath(this.projectRoot));
-      this.unwatch();
-      this.db.close();
+      const replacementGate = await (dependencies.acquireReplacementGate ?? acquireExclusiveReplacementGate)(
+        getDatabasePath(this.projectRoot),
+      );
       let promoted = false;
       const finalizationToken = issueJavaFinalizationToken(crypto.randomUUID(), '1');
       let completed = false;
+      let resultToReturn: IndexResult | undefined;
       let cleanupError: unknown;
       let hasCleanupError = false;
       let originalError: unknown;
       let hasOriginalError = false;
+      const reopenDatabase = () => (
+        dependencies.reopenDatabase ?? (() => this.reopenDatabaseAfterExternalIndex())
+      )();
       try {
-        const result = await runRustIndexerBorrowingGate(this.projectRoot, {
+        (dependencies.prepareExternalIndex ?? (() => this.unwatch()))();
+        this.db.close();
+        const result = await (dependencies.runIndexer ?? runRustIndexerBorrowingGate)(this.projectRoot, {
           verbose: options.verbose,
           onProgress: options.onProgress,
           javaFinalization: finalizationToken,
         });
         promoted = result.success;
         if (!result.success) {
+          resultToReturn = result;
           return result;
         }
 
@@ -1236,10 +1251,15 @@ export class CodeGraph {
             typescriptFinalizationMs: Date.now() - finalizationStarted,
           };
           const queueRows = (dependencies.rebuildQueue ?? rebuildEmbeddingQueue)(cg.db.getDb());
-          const verifier = DatabaseConnection.openForJavaFinalizationVerification(
+          const verifier = (
+            dependencies.openFinalizationVerifier
+            ?? DatabaseConnection.openForJavaFinalizationVerification
+          )(
             getDatabasePath(this.projectRoot),
             finalizationToken,
           );
+          let verificationError: unknown;
+          let hasVerificationError = false;
           try {
             const queue = verifier.getDb();
             const expected = queue.prepare(
@@ -1279,44 +1299,98 @@ export class CodeGraph {
                 'row per current file, with no extras, missing, or non-initial fields.',
               );
             }
+          } catch (error) {
+            verificationError = error;
+            hasVerificationError = true;
+            throw error;
           } finally {
-            verifier.close();
+            try {
+              verifier.close();
+            } catch (error) {
+              // Reconciliation evidence remains primary when close also fails.
+              if (!hasVerificationError) throw error;
+            }
           }
           cg.db.commitJavaFinalizationComplete();
           completed = true;
-          return result;
-        } finally {
           cg.close();
+          return result;
+        } catch (error) {
+          if (!completed) {
+            try {
+              cg.close();
+            } catch {
+              // The finalization failure remains the primary error.
+            }
+          }
+          throw error;
         }
+        if (!completed) cg.close();
       } catch (error) {
         originalError = error;
         hasOriginalError = true;
-        if (!promoted) this.reopenDatabaseAfterExternalIndex();
       } finally {
+        if (!promoted && !completed) {
+          try {
+            this.db.close();
+            reopenDatabase();
+          } catch (error) {
+            cleanupError = error;
+            hasCleanupError = true;
+          }
+        }
+        let closeError: unknown;
+        let hasCloseError = false;
+        if (promoted && !completed) {
+          try {
+            this.db.close();
+          } catch (error) {
+            closeError = error;
+            hasCloseError = true;
+          }
+        }
         try {
           if (promoted && !completed) {
             if (dependencies.markFailed) {
               dependencies.markFailed(finalizationToken);
             } else {
-              const failed = DatabaseConnection.openForJavaFinalization(
+              const failed = (
+                dependencies.openFinalizationFailureWriter
+                ?? DatabaseConnection.openForJavaFinalization
+              )(
                 getDatabasePath(this.projectRoot),
                 finalizationToken,
               );
-              failed.getDb().prepare(
-                'UPDATE project_metadata SET value = ? WHERE key = ? AND value = ?',
-              ).run('failed', 'java_finalization_state', 'required');
-              failed.close();
+              try {
+                failed.commitJavaFinalizationFailed();
+              } finally {
+                failed.close();
+              }
             }
           }
-          if (completed) this.reopenDatabaseAfterExternalIndex();
+          if (completed && !hasOriginalError) reopenDatabase();
         } catch (error) {
           cleanupError = error;
           hasCleanupError = true;
         } finally {
-          await replacementGate.release();
+          if (hasCloseError && !hasCleanupError) {
+            cleanupError = closeError;
+            hasCleanupError = true;
+          }
+          try {
+            await (dependencies.releaseReplacementGate ?? (() => replacementGate.release()))();
+          } catch (error) {
+            if (!hasCleanupError) {
+              cleanupError = error;
+              hasCleanupError = true;
+            }
+          }
         }
         if (hasOriginalError) throw originalError;
         if (hasCleanupError) throw cleanupError;
+        if (resultToReturn) {
+          return resultToReturn;
+        }
       }
       if (hasOriginalError) throw originalError;
       if (hasCleanupError) throw cleanupError;
@@ -1370,10 +1444,11 @@ export class CodeGraph {
             durationMs: 0,
           };
         }
+        const plannedFilePaths = normalizeJavaWritePlan(this.projectRoot, filePaths);
         await initGrammars();
-        const neededLanguages = [...new Set(filePaths.map((filePath) => detectLanguage(filePath)))];
+        const neededLanguages = [...new Set(plannedFilePaths.map((filePath) => detectLanguage(filePath)))];
         await loadGrammarsForLanguages(neededLanguages);
-        return this.orchestrator.indexFiles(filePaths);
+        return this.orchestrator.indexFiles(plannedFilePaths);
       } finally {
         await this.fileLock.release();
       }
@@ -1418,7 +1493,7 @@ export class CodeGraph {
       };
     }
 
-    for (const filePath of filePaths) {
+    for (const filePath of normalizeJavaWritePlan(this.projectRoot, filePaths)) {
       const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(this.projectRoot, filePath);
       if (fs.existsSync(absolutePath)) {
         existingFilePaths.push(filePath);

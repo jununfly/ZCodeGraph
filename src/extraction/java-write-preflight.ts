@@ -56,10 +56,16 @@ export function preflightJavaWrites(
   if (filePaths.length > MAX_ORIGINAL_PATHS) {
     return reject('java-preflight-limit', 'Java write preflight accepts at most 2,048 original paths.');
   }
-  const metadata = db.prepare(
-    "SELECT key, value FROM project_metadata WHERE key IN ('java_fact_generation', 'java_finalization_state')",
-  ).all() as Array<{ key: string; value: string }>;
-  if (metadata.some((row) => typeof row.key !== 'string' || typeof row.value !== 'string')) {
+  const metadata = (() => {
+    try {
+      return db.prepare(
+        "SELECT key, value FROM project_metadata WHERE key IN ('java_fact_generation', 'java_finalization_state')",
+      ).all() as Array<{ key: string; value: string }>;
+    } catch {
+      return null;
+    }
+  })();
+  if (metadata === null || metadata.some((row) => typeof row.key !== 'string' || typeof row.value !== 'string')) {
     return reject('java-facts-inconsistent-state', 'Java fact generation or finalization metadata is unreadable.');
   }
   const values = new Map(metadata.map((row) => [row.key, row.value]));
@@ -75,7 +81,16 @@ export function preflightJavaWrites(
   if (generation === undefined && state !== undefined) {
     return reject('java-facts-inconsistent-state', 'Java fact generation is missing while lifecycle state exists.');
   }
-  const javaEvidence = generation === 'p0b-java-v1' || hasPersistedJavaEvidence(db);
+  const javaEvidence = (() => {
+    try {
+      return generation === 'p0b-java-v1' || hasPersistedJavaEvidence(db);
+    } catch {
+      return null;
+    }
+  })();
+  if (javaEvidence === null) {
+    return reject('java-facts-inconsistent-state', 'Persisted Java file or fact evidence is unreadable.');
+  }
   let bytes = 0;
   const normalized = new Map<string, string>();
   const root = path.resolve(rootDir);
@@ -112,9 +127,24 @@ export function preflightJavaWrites(
   }
   if (!javaEvidence) return null;
 
-  const lookup = db.prepare('SELECT language FROM files WHERE path = ?');
-  for (const [identity] of normalized) {
-    if (javaPath(identity) || lookup.get(identity)?.language === 'java') {
+  const lookup = (() => {
+    try {
+      return db.prepare('SELECT language FROM files WHERE path = ?');
+    } catch {
+      return null;
+    }
+  })();
+  if (lookup === null) {
+    return reject('java-facts-inconsistent-state', 'Persisted file identity is unreadable during Java write preflight.');
+  }
+  for (const [identity, relative] of normalized) {
+    let persistedLanguage: unknown;
+    try {
+      persistedLanguage = lookup.get(relative)?.language;
+    } catch {
+      return reject('java-facts-inconsistent-state', 'Persisted file identity is unreadable during Java write preflight.');
+    }
+    if (javaPath(identity) || persistedLanguage === 'java') {
       return reject(
         'java-facts-rebuild-required',
         `java-facts-rebuild-required: incremental Java mutation is not supported: ${identity}`,
@@ -123,6 +153,17 @@ export function preflightJavaWrites(
     }
   }
   return null;
+}
+
+export function normalizeJavaWritePlan(rootDir: string, filePaths: readonly string[]): string[] {
+  const root = path.resolve(rootDir);
+  const identities = new Map<string, string>();
+  for (const original of filePaths) {
+    const relative = normalizePath(path.relative(root, path.resolve(root, original)));
+    const identity = process.platform === 'win32' ? relative.toLowerCase() : relative;
+    if (!identities.has(identity)) identities.set(identity, relative);
+  }
+  return [...identities.values()];
 }
 
 export function javaPreflightError(rejection: JavaWriteRejection): ExtractionError {

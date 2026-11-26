@@ -24,7 +24,7 @@ import ignore, { Ignore } from 'ignore';
 import { loadProjectConfig } from '../config/project-config';
 import { detectFrameworks } from '../resolution/frameworks';
 import type { ResolutionContext } from '../resolution/types';
-import { javaPreflightError, preflightJavaWrites } from './java-write-preflight';
+import { javaPreflightError, normalizeJavaWritePlan, preflightJavaWrites } from './java-write-preflight';
 
 /**
  * Number of files to read in parallel during indexing.
@@ -685,15 +685,22 @@ export class ExtractionOrchestrator {
       total: 0,
     });
 
-    const files = await scanDirectoryAsync(this.rootDir, (current, file) => {
+    const files = normalizeJavaWritePlan(this.rootDir, await scanDirectoryAsync(this.rootDir, (current, file) => {
       onProgress?.({
         phase: 'scanning',
         current,
         total: 0,
         currentFile: file,
       });
-    });
-    const preflight = this.checkJavaWritePreflight(files);
+    }));
+    // A full non-replacement request also covers tracked paths which have
+    // disappeared or changed type since the scan. Check current ∪ tracked
+    // before framework detection, reads, or any existing-file replacement.
+    const trackedPaths = this.queries.getAllFiles().map((file) => file.path);
+    const preflight = this.checkJavaWritePreflight(normalizeJavaWritePlan(
+      this.rootDir,
+      [...files, ...trackedPaths],
+    ));
     if (preflight) {
       return {
         success: false,
@@ -1192,7 +1199,20 @@ export class ExtractionOrchestrator {
     let totalNodes = 0;
     let totalEdges = 0;
 
-    for (const filePath of filePaths) {
+    const files = normalizeJavaWritePlan(this.rootDir, filePaths);
+    if (files.length === 0) {
+      return {
+        success: true,
+        filesIndexed: 0,
+        filesSkipped: 0,
+        filesErrored: 0,
+        nodesCreated: 0,
+        edgesCreated: 0,
+        errors: [],
+        durationMs: Date.now() - startTime,
+      };
+    }
+    for (const filePath of files) {
       const result = await this.indexFile(filePath);
 
       if (result.errors.length > 0) {
@@ -1241,14 +1261,15 @@ export class ExtractionOrchestrator {
         durationMs: 0,
       };
     }
-    const fullPath = this.probePathForEvaluation(relativePath);
+    const normalizedPath = normalizeJavaWritePlan(this.rootDir, [relativePath])[0]!;
+    const fullPath = this.probePathForEvaluation(normalizedPath);
 
     if (!fullPath) {
       return {
         nodes: [],
         edges: [],
         unresolvedReferences: [],
-        errors: [{ message: `Path traversal blocked: ${relativePath}`, filePath: relativePath, severity: 'error', code: 'path_traversal' }],
+        errors: [{ message: `Path traversal blocked: ${normalizedPath}`, filePath: normalizedPath, severity: 'error', code: 'path_traversal' }],
         durationMs: 0,
       };
     }
@@ -1267,7 +1288,7 @@ export class ExtractionOrchestrator {
         errors: [
           {
             message: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`,
-            filePath: relativePath,
+            filePath: normalizedPath,
             severity: 'error',
             code: 'read_error',
           },
@@ -1276,7 +1297,7 @@ export class ExtractionOrchestrator {
       };
     }
 
-    return this.indexFileWithContent(relativePath, content, stats);
+    return this.extractValidatedFile(normalizedPath, fullPath, content, stats);
   }
 
   /**
@@ -1298,19 +1319,30 @@ export class ExtractionOrchestrator {
         durationMs: 0,
       };
     }
-    // Prevent path traversal
-    const fullPath = validatePathWithinRoot(this.rootDir, relativePath);
+    // The preflight admits root-internal absolute paths; execute only its
+    // normalized relative identity so all downstream lookups share one key.
+    const normalizedPath = normalizeJavaWritePlan(this.rootDir, [relativePath])[0]!;
+    // Prevent path traversal at this independently callable entry.
+    const fullPath = this.probePathForEvaluation(normalizedPath);
     if (!fullPath) {
-      logWarn('Path traversal blocked in indexFileWithContent', { relativePath });
+      logWarn('Path traversal blocked in indexFileWithContent', { relativePath: normalizedPath });
       return {
         nodes: [],
         edges: [],
         unresolvedReferences: [],
-        errors: [{ message: 'Path traversal blocked', filePath: relativePath, severity: 'error', code: 'path_traversal' }],
+        errors: [{ message: 'Path traversal blocked', filePath: normalizedPath, severity: 'error', code: 'path_traversal' }],
         durationMs: 0,
       };
     }
+    return this.extractValidatedFile(normalizedPath, fullPath, content, stats);
+  }
 
+  private async extractValidatedFile(
+    relativePath: string,
+    _fullPath: string,
+    content: string,
+    stats: fs.Stats,
+  ): Promise<ExtractionResult> {
     // Check file size
     if (stats.size > MAX_FILE_SIZE) {
       return {
@@ -1370,6 +1402,7 @@ export class ExtractionOrchestrator {
       throw new Error(preflight.reason);
     }
     const contentHash = hashContent(content);
+    filePath = normalizeJavaWritePlan(this.rootDir, [filePath])[0]!;
 
     // Check if file already exists and hasn't changed
     const existingFile = this.queries.getFileByPath(filePath);
@@ -1466,7 +1499,7 @@ export class ExtractionOrchestrator {
     // whether or not the project uses git, and crucially also catches committed
     // changes from `git pull`/`checkout`/`merge`/`rebase` — which `git status`
     // cannot see, because the working tree is clean afterward.
-    const currentFiles = scanDirectory(this.rootDir);
+    const currentFiles = normalizeJavaWritePlan(this.rootDir, scanDirectory(this.rootDir));
     filesChecked = currentFiles.length;
     const currentSet = new Set(currentFiles);
 
@@ -1479,8 +1512,9 @@ export class ExtractionOrchestrator {
       throw new Error(preflight.reason);
     }
     const trackedMap = new Map<string, FileRecord>();
-    for (const f of trackedFiles) {
-      trackedMap.set(f.path, f);
+    for (const tracked of trackedFiles) {
+      const [filePath] = normalizeJavaWritePlan(this.rootDir, [tracked.path]);
+      trackedMap.set(filePath!, { ...tracked, path: filePath! });
     }
 
     // Removals: tracked in the DB but no longer a present source file. Check the

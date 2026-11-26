@@ -13,6 +13,7 @@ import type { IndexOptions, IndexResult } from '../src';
 import { rebuildEmbeddingQueue } from '../src/embedding/queue';
 import { createDatabase } from '../src/db/sqlite-adapter';
 import type { SqliteDatabase } from '../src/db/sqlite-adapter';
+import { preflightJavaWrites } from '../src/extraction/java-write-preflight';
 import { Node, Edge } from '../src/types';
 import { isInitialized, getCodeGraphDir, validateDirectory } from '../src/directory';
 import { validatePathWithinRoot } from '../src/utils';
@@ -420,6 +421,123 @@ describe('Database Connection', () => {
     opened.close();
   });
 
+  it('1-9-15-2: complete marker emits committed receipt with statement and COMMIT ordinal', () => {
+    const dbPath = path.join(tempDir, 'marker-receipt-complete.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    setup.getDb().exec('PRAGMA journal_mode = DELETE');
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)'
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    const receipts: Array<{
+      connectionId: string;
+      runId: string;
+      passId: string;
+      commitOrdinal: number;
+      statements: Array<{ state: string; changes: number }>;
+    }> = [];
+    const writer = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      token,
+      (_guardPath, options) => createDatabase(dbPath, {
+        ...options,
+        ...(options?.readOnly ? {} : {
+          observation: {
+            connectionId: 'marker-writer',
+            runId: token.runId,
+            passId: token.passId,
+          },
+        }),
+      }),
+    );
+    writer.onJavaFinalizationCommit = (receipt) => receipts.push(receipt);
+    try {
+      expect(writer.commitJavaFinalizationComplete()).toEqual({ changes: 1 });
+      expect(receipts).toEqual([{
+        connectionId: 'marker-writer',
+        runId: 'run-1',
+        passId: 'pass-1',
+        commitOrdinal: 1,
+        statements: [{ state: 'complete', changes: 1 }],
+      }]);
+      // Verify via a fresh ordinary reader that the marker was committed.
+      const reader = DatabaseConnection.open(dbPath);
+      try {
+        expect(reader.getDb().prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+          'java_finalization_state',
+        )).toEqual({ value: 'complete' });
+      } finally {
+        reader.close();
+      }
+    } finally {
+      writer.close();
+    }
+  });
+
+  it('1-9-15-2: failed marker emits committed receipt with statement and COMMIT ordinal', () => {
+    const dbPath = path.join(tempDir, 'marker-receipt-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    setup.getDb().exec('PRAGMA journal_mode = DELETE');
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)'
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    const receipts: Array<{
+      connectionId: string;
+      runId: string;
+      passId: string;
+      commitOrdinal: number;
+      statements: Array<{ state: string; changes: number }>;
+    }> = [];
+    const writer = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      token,
+      (_guardPath, options) => createDatabase(dbPath, {
+        ...options,
+        ...(options?.readOnly ? {} : {
+          observation: {
+            connectionId: 'marker-failed-writer',
+            runId: token.runId,
+            passId: token.passId,
+          },
+        }),
+      }),
+    );
+    writer.onJavaFinalizationCommit = (receipt) => receipts.push(receipt);
+    try {
+      expect(writer.commitJavaFinalizationFailed()).toEqual({ changes: 1 });
+      expect(receipts).toEqual([{
+        connectionId: 'marker-failed-writer',
+        runId: 'run-1',
+        passId: 'pass-1',
+        commitOrdinal: 1,
+        statements: [{ state: 'failed', changes: 1 }],
+      }]);
+      const { db: readerDb } = createDatabase(dbPath, { readOnly: true });
+      try {
+        expect(readerDb.prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+          'java_finalization_state',
+        )).toEqual({ value: 'failed' });
+      } finally {
+        readerDb.close();
+      }
+    } finally {
+      writer.close();
+    }
+  });
+
   it('1-9-15: does not report a complete marker when its COMMIT fails', () => {
     const dbPath = path.join(tempDir, 'marker-commit-failed.db');
     const setup = DatabaseConnection.initialize(dbPath);
@@ -450,6 +568,128 @@ describe('Database Connection', () => {
       expect(() => writer.commitJavaFinalizationComplete()).toThrow('marker COMMIT sentinel');
       expect(events).toEqual(['BEGIN', 'COMMIT', 'ROLLBACK']);
       expect(() => DatabaseConnection.open(dbPath)).toThrow(/Java.*required.*rebuild/i);
+    } finally {
+      writer.close();
+    }
+  });
+
+  it('1-9-15-2: preserves a complete COMMIT failure when ROLLBACK also fails', () => {
+    const dbPath = path.join(tempDir, 'marker-commit-rollback-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    setup.getDb().exec('PRAGMA journal_mode = DELETE');
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    const commitError = new Error('marker COMMIT primary sentinel');
+    const events: string[] = [];
+    const writer = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      token,
+      (_guardPath, options) => createDatabase(dbPath, {
+        ...options,
+        onExec: options?.readOnly ? undefined : (sql) => {
+          events.push(sql);
+          if (sql === 'COMMIT') throw commitError;
+          if (sql === 'ROLLBACK') throw new Error('marker ROLLBACK cleanup sentinel');
+        },
+      }),
+    );
+    let thrown: unknown;
+    try {
+      writer.commitJavaFinalizationComplete();
+    } catch (error) {
+      thrown = error;
+    } finally {
+      writer.close();
+    }
+    expect(thrown).toBe(commitError);
+    expect(events).toEqual(['BEGIN', 'COMMIT', 'ROLLBACK']);
+    const reader = DatabaseConnection.openForJavaFinalization(dbPath, token);
+    try {
+      expect(reader.getDb().prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+        'java_finalization_state',
+      )).toEqual({ value: 'required' });
+    } finally {
+      reader.close();
+    }
+  });
+
+  it('1-9-15: commits failed exactly once through the token-bound marker writer', () => {
+    const dbPath = path.join(tempDir, 'failure-marker-required.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    setup.getDb().exec('PRAGMA journal_mode = DELETE');
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const events: string[] = [];
+    const writer = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      issueJavaFinalizationToken('run-1', 'pass-1'),
+      (_guardPath, options) => createDatabase(dbPath, {
+        ...options,
+        onExec: options?.readOnly ? undefined : (sql) => events.push(sql),
+      }),
+    );
+    try {
+      expect(writer.commitJavaFinalizationFailed()).toEqual({ changes: 1 });
+      expect(events).toEqual(['BEGIN', 'COMMIT']);
+      expect(() => writer.commitJavaFinalizationFailed()).toThrow(/exactly one.*required/i);
+    } finally {
+      writer.close();
+    }
+    expect(() => DatabaseConnection.open(dbPath)).toThrow(/Java.*failed.*rebuild/i);
+  });
+
+  it('1-9-15: does not report a failed marker when its COMMIT fails', () => {
+    const dbPath = path.join(tempDir, 'failure-marker-commit-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    setup.getDb().exec('PRAGMA journal_mode = DELETE');
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    const events: string[] = [];
+    const writer = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      token,
+      (_guardPath, options) => createDatabase(dbPath, {
+        ...options,
+        onExec: options?.readOnly ? undefined : (sql) => {
+          events.push(sql);
+          if (sql === 'COMMIT') throw new Error('failure marker COMMIT sentinel');
+        },
+      }),
+    );
+    try {
+      expect(() => writer.commitJavaFinalizationFailed()).toThrow('failure marker COMMIT sentinel');
+      expect(events).toEqual(['BEGIN', 'COMMIT', 'ROLLBACK']);
+      const reader = DatabaseConnection.openForJavaFinalization(dbPath, token);
+      try {
+        expect(reader.getDb().prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+          'java_finalization_state',
+        )).toEqual({ value: 'required' });
+      } finally {
+        reader.close();
+      }
     } finally {
       writer.close();
     }
@@ -543,6 +783,188 @@ describe('Database Connection', () => {
     }
   });
 
+  it('1-9-15-2: preserves queue reconciliation when verifier close also fails', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          rebuildQueue(db: SqliteDatabase): number;
+          openFinalizationVerifier(
+            dbPath: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): DatabaseConnection;
+          markFailed(): void;
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const closeError = new Error('verifier close cleanup sentinel');
+    let closes = 0;
+    let releases = 0;
+    let failureMarkers = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        rebuildQueue(db) {
+          const count = rebuildEmbeddingQueue(db);
+          db.prepare('UPDATE embedding_queue SET attempts = 1, last_error = ?').run(
+            'injected queue reconciliation failure',
+          );
+          return count;
+        },
+        openFinalizationVerifier(dbPath, token) {
+          const verifier = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+          const close = verifier.close.bind(verifier);
+          verifier.close = () => {
+            closes++;
+            close();
+            throw closeError;
+          };
+          return verifier;
+        },
+        markFailed() {
+          failureMarkers++;
+        },
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.resolve();
+            },
+          });
+        },
+      })).rejects.toThrow(/queue reconciliation.*initial pending/i);
+      expect(closes).toBe(1);
+      expect(releases).toBe(1);
+      expect(failureMarkers).toBe(1);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: preserves failed COMMIT when its writer close also fails', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          rebuildQueue(db: SqliteDatabase): number;
+          openFinalizationFailureWriter(
+            dbPath: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): DatabaseConnection;
+          releaseReplacementGate(): Promise<void>;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const queueError = new Error('queue commit primary sentinel');
+    const markerCommitError = new Error('failed marker COMMIT primary sentinel');
+    const markerCloseError = new Error('failed marker close cleanup sentinel');
+    let releases = 0;
+    let tokenSeen: ReturnType<typeof issueJavaFinalizationToken> | undefined;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        rebuildQueue() {
+          throw queueError;
+        },
+        openFinalizationFailureWriter(dbPath, token) {
+          tokenSeen = token;
+          return DatabaseConnection.openForJavaFinalization(
+            dbPath,
+            token,
+            (_guardPath, options) => {
+              const database = createDatabase(dbPath, {
+                ...options,
+                onExec: options?.readOnly ? undefined : (sql) => {
+                  if (sql === 'COMMIT') throw markerCommitError;
+                },
+              });
+              const close = database.db.close.bind(database.db);
+              database.db.close = () => {
+                close();
+                throw markerCloseError;
+              };
+              return database;
+            },
+          );
+        },
+        releaseReplacementGate() {
+          releases++;
+          return Promise.resolve();
+        },
+      })).rejects.toBe(queueError);
+      expect(releases).toBe(1);
+      expect(tokenSeen).toBeDefined();
+      const reader = DatabaseConnection.openForJavaFinalization(
+        getDatabasePath(tempDir),
+        tokenSeen!,
+      );
+      try {
+        expect(reader.getDb().prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+          'java_finalization_state',
+        )).toEqual({ value: 'required' });
+      } finally {
+        reader.close();
+      }
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: preserves finalization when the committed failed writer close and release fail', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          rebuildQueue(db: SqliteDatabase): number;
+          openFinalizationFailureWriter(
+            dbPath: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): DatabaseConnection;
+          releaseReplacementGate(): Promise<void>;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const queueError = new Error('queue commit primary sentinel');
+    const closeError = new Error('failed writer close cleanup sentinel');
+    const releaseError = new Error('replacement release cleanup sentinel');
+    let closes = 0;
+    let releases = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        rebuildQueue() {
+          throw queueError;
+        },
+        openFinalizationFailureWriter(dbPath, token) {
+          const writer = DatabaseConnection.openForJavaFinalization(dbPath, token);
+          const close = writer.close.bind(writer);
+          writer.close = () => {
+            closes++;
+            close();
+            throw closeError;
+          };
+          return writer;
+        },
+        releaseReplacementGate() {
+          releases++;
+          return Promise.reject(releaseError);
+        },
+      })).rejects.toBe(queueError);
+      expect(closes).toBe(1);
+      expect(releases).toBe(1);
+      expect(() => CodeGraph.openSync(tempDir)).toThrow(/Java.*failed.*rebuild/i);
+    } finally {
+      cg.close();
+    }
+  });
+
   it('1-9-15: preserves the finalization failure when failure marking also fails', async () => {
     fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
     const cg = CodeGraph.initSync(tempDir);
@@ -569,6 +991,74 @@ describe('Database Connection', () => {
       })).rejects.toThrow('queue commit sentinel');
       expect(markerAttempts).toBe(1);
       expect(() => CodeGraph.openSync(tempDir)).toThrow(/Java.*required.*rebuild/i);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: preserves the original failure when replacement gate release also fails', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          rebuildQueue(db: SqliteDatabase): number;
+          releaseReplacementGate(): Promise<void>;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const queueError = new Error('queue commit sentinel');
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        rebuildQueue() {
+          throw queueError;
+        },
+        releaseReplacementGate() {
+          return Promise.reject(new Error('replacement release sentinel'));
+        },
+      })).rejects.toBe(queueError);
+      expect(() => CodeGraph.openSync(tempDir)).toThrow(/Java.*failed.*rebuild/i);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: preserves reopen failure when replacement gate release also fails', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          reopenDatabase(): void;
+          releaseReplacementGate(): Promise<void>;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const reopenError = new Error('reopen sentinel');
+    let reopenAttempts = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        reopenDatabase() {
+          reopenAttempts++;
+          throw reopenError;
+        },
+        releaseReplacementGate() {
+          return Promise.reject(new Error('replacement release sentinel'));
+        },
+      })).rejects.toBe(reopenError);
+      expect(reopenAttempts).toBe(1);
+      const reopened = CodeGraph.openSync(tempDir);
+      try {
+        const raw = (reopened as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+        expect(raw.prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+          'java_finalization_state',
+        )).toEqual({ value: 'complete' });
+      } finally {
+        reopened.close();
+      }
     } finally {
       cg.close();
     }
@@ -616,6 +1106,364 @@ describe('Database Connection', () => {
     }
   });
 
+  it('1-9-15-2: preserves a lifecycle rejection when the guard close also fails', () => {
+    const dbPath = path.join(tempDir, 'required-guard-close-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    ).run('java_finalization_state', 'required', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    let closeAttempts = 0;
+    let thrown: unknown;
+    try {
+      DatabaseConnection.openForJavaFinalization(
+        dbPath,
+        token,
+        (_guardPath, options) => {
+          const database = createDatabase(dbPath, options);
+          const close = database.db.close.bind(database.db);
+          database.db.close = () => {
+            closeAttempts++;
+            close();
+            throw new Error('guard close cleanup sentinel');
+          };
+          return database;
+        },
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toMatch(/run\/pass.*match/i);
+    expect(closeAttempts).toBe(1);
+  });
+
+  it('1-9-15-2: preserves a promoted finalization failure when its graph close also fails', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust-hybrid',
+        options: IndexOptions,
+        dependencies: {
+          runIndexer(): Promise<IndexResult>;
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          openFinalizationGraph(): Promise<CodeGraph>;
+          markFailed(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const finalizationError = new Error('promoted finalization sentinel');
+    const closeError = new Error('finalization graph close sentinel');
+    let releases = 0;
+    let failureMarkers = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust-hybrid', {}, {
+        runIndexer() {
+          return Promise.resolve({
+            success: true,
+            filesIndexed: 1,
+            filesSkipped: 0,
+            filesErrored: 0,
+            nodesCreated: 0,
+            edgesCreated: 0,
+            errors: [],
+            durationMs: 0,
+          });
+        },
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.resolve();
+            },
+          });
+        },
+        async openFinalizationGraph() {
+          return {
+            finalizeRustIndex() {
+              return Promise.reject(finalizationError);
+            },
+            close() {
+              throw closeError;
+            },
+          } as unknown as CodeGraph;
+        },
+        markFailed() {
+          failureMarkers++;
+        },
+      })).rejects.toBe(finalizationError);
+      expect(releases).toBe(1);
+      expect(failureMarkers).toBe(1);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: closes a completed finalization graph once when its close fails', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          openFinalizationGraph(
+            projectRoot: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): Promise<CodeGraph>;
+          reopenDatabase(): void;
+          markFailed(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const closeError = new Error('complete finalization graph close sentinel');
+    let closes = 0;
+    let releases = 0;
+    let reopens = 0;
+    let failureMarkers = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.resolve();
+            },
+          });
+        },
+        async openFinalizationGraph(projectRoot, token) {
+          const graph = await CodeGraph.openForJavaFinalization(projectRoot, token);
+          const close = graph.close.bind(graph);
+          graph.close = () => {
+            closes++;
+            close();
+            throw closeError;
+          };
+          return graph;
+        },
+        reopenDatabase() {
+          reopens++;
+        },
+        markFailed() {
+          failureMarkers++;
+        },
+      })).rejects.toBe(closeError);
+      expect(closes).toBe(1);
+      expect(releases).toBe(1);
+      expect(reopens).toBe(0);
+      expect(failureMarkers).toBe(0);
+      const reopened = CodeGraph.openSync(tempDir);
+      try {
+        expect(reopened.getFiles()).toEqual([]);
+      } finally {
+        reopened.close();
+      }
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: restores public reads after a native promotion failure', async () => {
+    fs.writeFileSync(path.join(tempDir, 'old.ts'), 'export function oldIndex(): number { return 1; }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    expect((await cg.indexAll({ engine: 'typescript' })).success).toBe(true);
+    const external = createDatabase(getDatabasePath(tempDir)).db;
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: Record<string, never>,
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {}))
+        .rejects.toThrow(/os error 32/);
+      expect(cg.getFile('old.ts')).not.toBeNull();
+      expect(cg.getFile('missing.ts')).toBeNull();
+    } finally {
+      external.close();
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: preserves the original rust-indexer failure when non-promoted reopen also fails', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          runIndexer(): Promise<IndexResult>;
+          reopenDatabase(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const rustIndexerError = new Error('rust indexer process crash sentinel');
+    const reopenError = new Error('non-promoted reopen sentinel');
+    let reopenAttempts = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        runIndexer() {
+          return Promise.reject(rustIndexerError);
+        },
+        reopenDatabase() {
+          reopenAttempts++;
+          throw reopenError;
+        },
+      })).rejects.toBe(rustIndexerError);
+      expect(reopenAttempts).toBe(1);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: preserves an unsuccessful rust result until cleanup succeeds', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          runIndexer(): Promise<IndexResult>;
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          reopenDatabase(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const result: IndexResult = {
+      success: false,
+      filesIndexed: 0,
+      filesSkipped: 0,
+      filesErrored: 1,
+      nodesCreated: 0,
+      edgesCreated: 0,
+      errors: [{ message: 'rust reported an unsuccessful replacement', severity: 'error' }],
+      durationMs: 0,
+    };
+    let reopenAttempts = 0;
+    const dependencies = {
+      runIndexer() {
+        return Promise.resolve(result);
+      },
+      reopenDatabase() {
+        reopenAttempts++;
+      },
+    };
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        ...dependencies,
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              return Promise.reject(new Error('replacement release sentinel'));
+            },
+          });
+        },
+      })).rejects.toThrow('replacement release sentinel');
+      expect(reopenAttempts).toBe(1);
+      await expect(evaluate.call(cg, 'rust', {}, {
+        ...dependencies,
+        acquireReplacementGate() {
+          return Promise.resolve({ release: () => Promise.resolve() });
+        },
+      })).resolves.toBe(result);
+      expect(reopenAttempts).toBe(2);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: releases the gate when an unsuccessful result cannot reopen the old graph', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          runIndexer(): Promise<IndexResult>;
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          reopenDatabase(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const reopenError = new Error('unsuccessful-result reopen sentinel');
+    let releases = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        runIndexer() {
+          return Promise.resolve({
+            success: false,
+            filesIndexed: 0,
+            filesSkipped: 0,
+            filesErrored: 1,
+            nodesCreated: 0,
+            edgesCreated: 0,
+            errors: [{ message: 'unsuccessful native replacement', severity: 'error' }],
+            durationMs: 0,
+          });
+        },
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.resolve();
+            },
+          });
+        },
+        reopenDatabase() {
+          throw reopenError;
+        },
+      })).rejects.toBe(reopenError);
+      expect(releases).toBe(1);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: releases the acquired gate and preserves a pre-index unwatch failure', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          prepareExternalIndex(): void;
+          runIndexer(): Promise<IndexResult>;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const unwatchError = new Error('unwatch sentinel');
+    const releaseError = new Error('replacement release sentinel');
+    let releases = 0;
+    let indexAttempts = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.reject(releaseError);
+            },
+          });
+        },
+        prepareExternalIndex() {
+          throw unwatchError;
+        },
+        runIndexer() {
+          indexAttempts++;
+          return Promise.reject(new Error('indexer must not run after unwatch failure'));
+        },
+      })).rejects.toBe(unwatchError);
+      expect(releases).toBe(1);
+      expect(indexAttempts).toBe(0);
+    } finally {
+      cg.close();
+    }
+  });
+
   it('1-9-15: rejects a missing Java fallback from the original plan before any probe', async () => {
     fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner {}\n');
     fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const before = 1;\n');
@@ -647,6 +1495,359 @@ describe('Database Connection', () => {
         code: 'java-facts-rebuild-required',
       })]);
       expect(cg.getFiles()).toEqual(before);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: normalizes unreadable Java state before lexical classification', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      const originalPrepare = raw.prepare.bind(raw);
+      raw.prepare = (sql: string) => {
+        if (sql.includes('FROM project_metadata')) {
+          throw new Error('persisted state unreadable sentinel');
+        }
+        return originalPrepare(sql);
+      };
+      expect(preflightJavaWrites(raw, tempDir, ['../outside.ts'])).toEqual(
+        expect.objectContaining({ code: 'java-facts-inconsistent-state' }),
+      );
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: normalizes every persisted evidence read failure before path probes', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      raw.prepare("INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)")
+        .run('java_fact_generation', 'p0b-java-v1', 1);
+      raw.prepare("INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)")
+        .run('java_finalization_state', 'unknown-state-for-failure-injection', 1);
+      raw.prepare(`
+        INSERT INTO files (
+          path, content_hash, language, size, modified_at, indexed_at, node_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run('Owner.java', 'hash', 'java', 14, 1, 1, 0);
+      for (const [source, stage] of [
+        ['project_metadata', 'prepare'],
+        ['project_metadata', 'execute'],
+        ['unresolved_refs', 'prepare'],
+        ['nodes', 'prepare'],
+        ['SELECT language FROM files WHERE path = ?', 'prepare'],
+        ['SELECT language FROM files WHERE path = ?', 'execute'],
+      ] as const) {
+        const originalPrepare = raw.prepare.bind(raw);
+        raw.prepare = (sql: string) => {
+          if (sql.includes(source)) {
+            if (stage === 'prepare') throw new Error(`${source} prepare sentinel`);
+            const statement = originalPrepare(sql);
+            return {
+              ...statement,
+              get() { throw new Error(`${source} execute sentinel`); },
+              all() { throw new Error(`${source} execute sentinel`); },
+            };
+          }
+          return originalPrepare(sql);
+        };
+        try {
+          expect(preflightJavaWrites(raw, tempDir, ['Owner.java']), `${source} ${stage}`)
+            .toEqual(expect.objectContaining({ code: 'java-facts-inconsistent-state' }));
+        } finally {
+          raw.prepare = originalPrepare;
+        }
+      }
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: validates the full original plan but probes each normalized path once', async () => {
+    fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const page = 1;\n');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const orchestrator = (cg as unknown as {
+        orchestrator: {
+          probePathForEvaluation(path: string): string | null;
+          indexFile(path: string): Promise<{ nodes: unknown[] }>;
+        };
+      }).orchestrator;
+      const probe = vi.spyOn(orchestrator, 'probePathForEvaluation');
+      const store = vi.spyOn(orchestrator, 'indexFile');
+      const result = await cg.indexFiles(['page.ts', 'page.ts']);
+      expect(result.success).toBe(true);
+      expect(result.filesIndexed).toBe(1);
+      expect(probe).toHaveBeenCalledTimes(1);
+      expect(store).toHaveBeenCalledTimes(1);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: preserves the existing root-internal absolute-path indexing contract', async () => {
+    fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const page = 1;\n');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const result = await cg.indexFiles([path.join(tempDir, 'page.ts')]);
+      expect(result.errors).toEqual([]);
+      expect(cg.getFiles().map((file) => file.path)).toEqual(['page.ts']);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: preserves admitted legacy path and filesystem classifications', async () => {
+    fs.mkdirSync(path.join(tempDir, 'directory.ts'));
+    fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const page = 1;\n');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const outside = path.join(`${tempDir}-outside`, 'outside.ts');
+      fs.mkdirSync(path.dirname(outside), { recursive: true });
+      fs.writeFileSync(outside, 'export const outside = true;\n');
+      let symlink = false;
+      try {
+        fs.symlinkSync(outside, path.join(tempDir, 'escape.ts'));
+        symlink = true;
+      } catch { /* Windows may require Developer Mode for symlinks. */ }
+      const cases = [
+        ['../outside.ts', 'path_traversal'],
+        ['missing.ts', 'read_error'],
+        ['directory.ts', 'read_error'],
+        ...(symlink ? [['escape.ts', 'path_traversal']] : []),
+      ] as const;
+      const inputs = [...cases.map(([filePath]) => filePath)];
+      for (let index = 0; index < inputs.length; index++) {
+        const result = await cg.indexFiles([inputs[index]!]);
+        const expected = cases[index]![1];
+        expect(result.errors, inputs[index]).toEqual([
+          expect.objectContaining({ code: expected }),
+        ]);
+        expect(cg.getFiles()).toEqual([]);
+      }
+      if (process.platform === 'win32') {
+        fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const page = 1;\n');
+        expect((await cg.indexFiles(['page.ts', 'Page.ts'])).errors).toEqual([
+          expect.objectContaining({ code: 'path_normalization_collision' }),
+        ]);
+        expect(cg.getFiles()).toEqual([]);
+      }
+      const readSpy = vi.spyOn(fs.promises, 'readFile').mockRejectedValue(
+        Object.assign(new Error('permission denied sentinel'), { code: 'EACCES' }),
+      );
+      try {
+        const result = await cg.indexFiles(['readable.ts']);
+        expect(result.errors).toEqual([expect.objectContaining({ code: 'read_error' })]);
+      } finally {
+        readSpy.mockRestore();
+      }
+    } finally {
+      cg.close();
+      cleanupTempDir(`${tempDir}-outside`);
+    }
+  });
+
+  it('1-9-15: rejects a tracked Java path turned directory without probing a full index', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner {}\n');
+    fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const before = 1;\n');
+    fs.writeFileSync(path.join(tempDir, 'package.json'), '{"private":true}\n');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      expect((await cg.indexAll({ engine: 'rust' })).success).toBe(true);
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      const metadata = raw.prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      );
+      if (!raw.prepare('SELECT 1 FROM project_metadata WHERE key = ?').get('java_fact_generation')) {
+        metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+        metadata.run('java_finalization_state', 'complete', 1);
+      }
+      expect(raw.prepare("SELECT language FROM files WHERE path = 'Owner.java'").get()).toEqual({ language: 'java' });
+      const before = raw.prepare('SELECT * FROM files ORDER BY path').all();
+      const orchestrator = (cg as unknown as {
+        orchestrator: {
+          probePathForEvaluation(path: string): never;
+          preflightJavaWritesForEvaluation(paths: readonly string[]): { code?: string } | null;
+        };
+      }).orchestrator;
+      orchestrator.probePathForEvaluation = (filePath) => {
+        throw new Error(`unexpected probe: ${filePath}`);
+      };
+      fs.unlinkSync(path.join(tempDir, 'Owner.java'));
+      expect(orchestrator.preflightJavaWritesForEvaluation(['page.ts', 'Owner.java'])).toEqual(
+        expect.objectContaining({ code: 'java-facts-rebuild-required' }),
+      );
+      fs.mkdirSync(path.join(tempDir, 'Owner.java'));
+      fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const after = 2;\n');
+      const result = await cg.indexAll({ engine: 'typescript' });
+      expect(result.errors).toEqual([expect.objectContaining({
+        code: 'java-facts-rebuild-required',
+      })]);
+      expect(raw.prepare('SELECT * FROM files ORDER BY path').all()).toEqual(before);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: persists the normalized identity through the pre-read single-file entry', async () => {
+    fs.writeFileSync(path.join(tempDir, 'page.ts'), 'export const page = 1;\n');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const orchestrator = (cg as unknown as {
+        orchestrator: {
+          indexFileWithContent(filePath: string, content: string, stats: fs.Stats): Promise<{
+            errors: Array<{ code?: string }>;
+          }>;
+        };
+      }).orchestrator;
+      const content = 'export const page = 2;\n';
+      const stats = fs.statSync(path.join(tempDir, 'page.ts'));
+      const result = await orchestrator.indexFileWithContent(
+        path.join(tempDir, 'page.ts'),
+        content,
+        stats,
+      );
+      expect(result.errors).toEqual([]);
+      expect(cg.getFiles().map((file) => file.path)).toEqual(['page.ts']);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: defends shared ParseStage storage before deletion', async () => {
+    const { storeExtractionResult } = await import('../src/extraction/index-stages');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      raw.prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      ).run('java_fact_generation', 'p0b-java-v1', 1);
+      raw.prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      ).run('java_finalization_state', 'complete', 1);
+      const queries = (cg as unknown as {
+        queries: { deleteFile(filePath: string): void };
+      }).queries;
+      const deleteSpy = vi.spyOn(queries, 'deleteFile');
+      expect(() => storeExtractionResult(
+        queries as never,
+        tempDir,
+        'Owner.java',
+        'class Owner {}',
+        'java',
+        { size: 14, mtimeMs: 1 } as fs.Stats,
+        { nodes: [], edges: [], unresolvedReferences: [], errors: [], durationMs: 0 },
+      )).toThrow(/java-facts-rebuild-required/i);
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(cg.getFiles()).toEqual([]);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: rejects abnormal v1 Java paths before single-file and fallback probes', async () => {
+    const cases = ['Missing.java', 'Directory.java', 'Escape.java', 'Unreadable.java'] as const;
+    fs.mkdirSync(path.join(tempDir, 'Directory.java'));
+    for (const filePath of ['Escape.java', 'Unreadable.java']) {
+      fs.writeFileSync(path.join(tempDir, filePath), 'class Owner {}\n');
+    }
+    const outside = `${tempDir}-outside.java`;
+    fs.writeFileSync(outside, 'class Outside {}\n');
+    try {
+      fs.unlinkSync(path.join(tempDir, 'Escape.java'));
+      fs.symlinkSync(outside, path.join(tempDir, 'Escape.java'));
+    } catch { /* The lexical guard must reject even when no link can be made. */ }
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner {}\n');
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      expect((await cg.indexAll({ engine: 'rust' })).success).toBe(true);
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      const orchestrator = (cg as unknown as {
+        orchestrator: {
+          probePathForEvaluation(path: string): never;
+          indexFile(path: string): Promise<{ errors: Array<{ code?: string }> }>;
+        };
+      }).orchestrator;
+      const before = raw.prepare('SELECT * FROM files ORDER BY path').all();
+      for (const filePath of cases) {
+        if (filePath === 'Unreadable.java') {
+          const readSpy = vi.spyOn(fs.promises, 'readFile').mockRejectedValue(
+            Object.assign(new Error('permission denied sentinel'), { code: 'EACCES' }),
+          );
+          try {
+            expect((await cg.indexFiles([filePath])).errors).toEqual([
+              expect.objectContaining({ code: 'java-facts-rebuild-required' }),
+            ]);
+            expect(readSpy).not.toHaveBeenCalled();
+          } finally {
+            readSpy.mockRestore();
+          }
+        }
+        orchestrator.probePathForEvaluation = (candidate) => {
+          throw new Error(`unexpected probe: ${candidate}`);
+        };
+        expect((await cg.indexFiles([filePath])).errors).toEqual([
+          expect.objectContaining({ code: 'java-facts-rebuild-required' }),
+        ]);
+        expect((await orchestrator.indexFile(filePath)).errors).toEqual([
+          expect.objectContaining({ code: 'java-facts-rebuild-required' }),
+        ]);
+        expect((await cg.indexFallbackFiles([filePath])).errors).toEqual([
+          expect.objectContaining({ code: 'java-facts-rebuild-required' }),
+        ]);
+        expect(raw.prepare('SELECT * FROM files ORDER BY path').all()).toEqual(before);
+      }
+    } finally {
+      cg.close();
+      cleanupTempDir(`${tempDir}-outside.java`);
+    }
+  });
+
+  it('1-9-15: enforces original, normalized and exact byte limits without probing', () => {
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      const orchestrator = (cg as unknown as {
+        orchestrator: {
+          preflightJavaWritesForEvaluation(paths: readonly string[]): { code?: string } | null;
+          probePathForEvaluation(path: string): never;
+        };
+      }).orchestrator;
+      const check = orchestrator.preflightJavaWritesForEvaluation.bind(orchestrator);
+      const exactBytes = ['x'.repeat(1024 * 1024 - 3) + '.ts'];
+      expect(Buffer.byteLength(exactBytes[0]!, 'utf8')).toBe(1024 * 1024);
+      expect(check(exactBytes)).toBeNull();
+      expect(check([...exactBytes, 'b.ts'])).toEqual(expect.objectContaining({ code: 'java-preflight-limit' }));
+      expect(check(Array.from({ length: 2049 }, (_, index) => `file-${index}.ts`))).toEqual(
+        expect.objectContaining({ code: 'java-preflight-limit' }),
+      );
+      const originalPrepare = raw.prepare.bind(raw);
+      raw.prepare = (sql: string) => {
+        if (sql.includes('FROM project_metadata')) throw new Error('unreadable state sentinel');
+        return originalPrepare(sql);
+      };
+      for (const paths of [['../outside.ts'], ['page.ts', 'Page.ts']]) {
+        expect(check(paths)).toEqual(expect.objectContaining({
+          code: 'java-facts-inconsistent-state',
+        }));
+      }
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15: rejects a combined sync plan over the original cap before probing', async () => {
+    const cg = CodeGraph.initSync(tempDir);
+    try {
+      const raw = (cg as unknown as { db: { getDb(): SqliteDatabase } }).db.getDb();
+      for (let index = 0; index < 2049; index++) {
+        fs.writeFileSync(path.join(tempDir, `file-${index}.ts`), `export const value${index} = ${index};\n`);
+      }
+      const before = raw.prepare('SELECT * FROM files').all();
+      await expect(cg.sync()).rejects.toThrow(/2,048 original paths/i);
+      expect(raw.prepare('SELECT * FROM files').all()).toEqual(before);
     } finally {
       cg.close();
     }

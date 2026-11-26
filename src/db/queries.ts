@@ -5,6 +5,7 @@
  */
 
 import { SqliteDatabase, SqliteStatement } from './sqlite-adapter';
+import type { SqliteCommitReceipt, SqliteTransactionObserver } from './sqlite-adapter';
 import {
   Node,
   Edge,
@@ -205,12 +206,41 @@ function rowToUnresolvedReference(row: UnresolvedRefRow): UnresolvedReference {
   };
 }
 
+export interface JavaCommittedEdgeReceipt extends SqliteCommitReceipt {
+  statements: Array<{
+    edge: Edge;
+    changes: number;
+    lastInsertRowid: number;
+  }>;
+}
+
+export interface JavaCommittedCleanupReceipt extends SqliteCommitReceipt {
+  statements: Array<
+    | { rowids: number[]; changes: number }
+    | { tuples: Array<{ fromNodeId: string; referenceName: string; referenceKind: string }>; changes: number }
+    | { range: { start: number; end: number }; changes: number }
+  >;
+}
+
+interface JavaWriteObserver {
+  recordCommittedEdges(receipt: JavaCommittedEdgeReceipt): void;
+  recordCommittedCleanup?(receipt: JavaCommittedCleanupReceipt): void;
+}
+
 /**
  * Query builder for the knowledge graph database
  */
 export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, ResolutionAccessModel, StatusAccessModel {
   private db: SqliteDatabase;
+  private javaWriteObserver?: JavaWriteObserver;
 
+  /** Internal evaluation composition only; production never attaches this. */
+  attachJavaWriteObserverForEvaluation(observer: JavaWriteObserver): void {
+    if (this.javaWriteObserver) {
+      throw new Error('A Java write observer is already attached to this connection.');
+    }
+    this.javaWriteObserver = observer;
+  }
   // Node cache for frequently accessed nodes (LRU-style, max 1000 entries)
   private nodeCache: Map<string, Node> = new Map();
   private readonly maxCacheSize = 1000;
@@ -1420,9 +1450,31 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
       `);
     }
     const insertEdge = this.stmts.insertEdge;
-    this.db.transaction(() => {
-      for (const row of rows) {
-        insertEdge.run(row);
+    const observer = this.javaWriteObserver;
+    this.db.transaction((transactionObserver?: SqliteTransactionObserver) => {
+      const statements: JavaCommittedEdgeReceipt['statements'] = [];
+      for (let index = 0; index < rows.length; index++) {
+        const result = insertEdge.run(rows[index]);
+        if (!observer) continue;
+        const lastInsertRowid = Number(result.lastInsertRowid);
+        if (
+          result.changes !== 1 ||
+          !Number.isSafeInteger(lastInsertRowid) ||
+          lastInsertRowid <= 0
+        ) {
+          throw new Error('Observed Java edge INSERT must insert one positive safe-integer rowid.');
+        }
+        statements.push({ edge: edges[index]!, ...result, lastInsertRowid });
+      }
+      if (observer) {
+        if (!transactionObserver) {
+          throw new Error('Observed Java edge writes require a transaction-aware adapter.');
+        }
+        transactionObserver.observeCommit(statements, (receipt) => {
+          // COMMIT has returned before this callback; its exception propagates
+          // without attempting a rollback of the already committed edge batch.
+          observer.recordCommittedEdges(receipt as JavaCommittedEdgeReceipt);
+        });
       }
     })();
     this.invalidateReadModelCaches();
@@ -1859,7 +1911,11 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
   deleteSpecificResolvedReferences(refs: Array<{ fromNodeId: string; referenceName: string; referenceKind: string }>): void {
     if (refs.length === 0) return;
     const tupleChunkSize = Math.max(1, Math.floor(SQLITE_PARAM_CHUNK_SIZE / 3));
-    const deleteMany = this.db.transaction((items: typeof refs) => {
+    const observer = this.javaWriteObserver?.recordCommittedCleanup
+      ? this.javaWriteObserver
+      : undefined;
+    const deleteMany = this.db.transaction((items: typeof refs, transactionObserver?: SqliteTransactionObserver) => {
+      const statements: JavaCommittedCleanupReceipt['statements'] = [];
       for (let i = 0; i < items.length; i += tupleChunkSize) {
         const chunk = items.slice(i, i + tupleChunkSize);
         const placeholders = chunk.map(() => '(?, ?, ?)').join(',');
@@ -1868,11 +1924,22 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
           ref.referenceName,
           ref.referenceKind,
         ]);
-        this.db
+        const result = this.db
           .prepare(
             `DELETE FROM unresolved_refs WHERE (from_node_id, reference_name, reference_kind) IN (${placeholders})`
           )
           .run(...params);
+        if (observer) {
+          statements.push({ tuples: [...chunk], changes: result.changes });
+        }
+      }
+      if (observer) {
+        if (!transactionObserver) {
+          throw new Error('Observed Java cleanup writes require a transaction-aware adapter.');
+        }
+        transactionObserver.observeCommit(statements, (receipt) => {
+          observer.recordCommittedCleanup?.(receipt);
+        });
       }
     });
     deleteMany(refs);
@@ -1883,13 +1950,31 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
     const uniqueRowids = [...new Set(rowids.filter((rowid) => Number.isInteger(rowid) && rowid > 0))];
     if (uniqueRowids.length === 0) return;
 
-    const deleteMany = this.db.transaction((items: number[]) => {
+    const observer = this.javaWriteObserver?.recordCommittedCleanup
+      ? this.javaWriteObserver
+      : undefined;
+    const deleteMany = this.db.transaction((items: number[], transactionObserver?: SqliteTransactionObserver) => {
+      const statements: JavaCommittedCleanupReceipt['statements'] = [];
       for (let i = 0; i < items.length; i += SQLITE_PARAM_CHUNK_SIZE) {
         const chunk = items.slice(i, i + SQLITE_PARAM_CHUNK_SIZE);
         const placeholders = chunk.map(() => '?').join(',');
-        this.db
+        const result = this.db
           .prepare(`DELETE FROM unresolved_refs WHERE rowid IN (${placeholders})`)
           .run(...chunk);
+        if (observer) {
+          if (result.changes !== chunk.length) {
+            throw new Error('Observed Java cleanup DELETE must remove every requested rowid.');
+          }
+          statements.push({ rowids: [...chunk], changes: result.changes });
+        }
+      }
+      if (observer) {
+        if (!transactionObserver) {
+          throw new Error('Observed Java cleanup writes require a transaction-aware adapter.');
+        }
+        transactionObserver.observeCommit(statements, (receipt) => {
+          observer.recordCommittedCleanup?.(receipt);
+        });
       }
     });
     deleteMany(uniqueRowids);
@@ -1917,13 +2002,29 @@ export class QueryBuilder implements AgentAccessModel, MaintenanceAccessModel, R
 
     const deleteSingle = this.db.prepare('DELETE FROM unresolved_refs WHERE rowid = ?');
     const deleteRange = this.db.prepare('DELETE FROM unresolved_refs WHERE rowid BETWEEN ? AND ?');
-    const deleteMany = this.db.transaction((items: typeof ranges) => {
+    const observer = this.javaWriteObserver?.recordCommittedCleanup
+      ? this.javaWriteObserver
+      : undefined;
+    const deleteMany = this.db.transaction((items: typeof ranges, transactionObserver?: SqliteTransactionObserver) => {
+      const statements: JavaCommittedCleanupReceipt['statements'] = [];
       for (const range of items) {
+        let result: { changes: number };
         if (range.start === range.end) {
-          deleteSingle.run(range.start);
+          result = deleteSingle.run(range.start);
         } else {
-          deleteRange.run(range.start, range.end);
+          result = deleteRange.run(range.start, range.end);
         }
+        if (observer) {
+          statements.push({ range, changes: result.changes });
+        }
+      }
+      if (observer) {
+        if (!transactionObserver) {
+          throw new Error('Observed Java cleanup writes require a transaction-aware adapter.');
+        }
+        transactionObserver.observeCommit(statements, (receipt) => {
+          observer.recordCommittedCleanup?.(receipt);
+        });
       }
     });
     deleteMany(ranges);

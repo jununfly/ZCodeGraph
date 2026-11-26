@@ -25,7 +25,7 @@ import { loadProjectConfig } from '../config/project-config';
 import { detectFrameworks } from '../resolution/frameworks';
 import type { ResolutionContext } from '../resolution/types';
 import { hashContent } from './index';
-import { preflightJavaWrites } from './java-write-preflight';
+import { normalizeJavaWritePlan, preflightJavaWrites } from './java-write-preflight';
 
 // Re-export constants from extraction/index.ts that stages depend on
 const FILE_IO_BATCH_SIZE = 10;
@@ -678,6 +678,7 @@ export function storeExtractionResult(
   }
 
   const contentHash = hashContent(content);
+  filePath = normalizeJavaWritePlan(rootDir, [filePath])[0]!;
 
   const existingFile = queries.getFileByPath(filePath);
   if (existingFile && existingFile.contentHash === contentHash) {
