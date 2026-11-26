@@ -202,4 +202,79 @@ describe('native process supervision and crash recovery', () => {
     },
     45_000,
   );
+
+  it('rejects the first FTS rebuild after the real native descendant commits facts', async () => {
+    const nativeCore = findRustCoreCommand();
+    const nativePath = path.join(REPO_ROOT, 'target/debug', process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core');
+    expect(nativeCore.command).toBe(nativePath);
+    const cg = await CodeGraph.open(projectRoot);
+    expect((await cg.indexAll({ engine: 'rust' })).success).toBe(true);
+    expect(cg.getFile('old.ts')).not.toBeNull();
+    await cg.closeAndWait();
+    expect(fs.readdirSync(path.dirname(dbPath)).filter((name) => name.startsWith('post-commit-fts-failure-'))).toEqual([]);
+    const oldActiveBytes = fs.readFileSync(dbPath);
+    fs.mkdirSync(path.join(projectRoot, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, 'src/new.ts'), 'export function newIndex(): number { return 2; }\n');
+    gate = await acquireExclusiveReplacementGate(dbPath, 0);
+    const output = await new Promise<{ status: number | null; stdout: string; stderr: string; pid: number }>((resolve, reject) => {
+      const child = spawn(nativeCore.command, [
+        ...nativeCore.argsPrefix,
+        'supervised-index', 'index', '--engine', 'rust', '--replacement-gate-externally-held',
+        '--project-path', projectRoot, '--index-path', dbPath,
+        '--sqlite-write-mode', 'disk', '--java-finalization-run', 'post-commit-run',
+        '--java-finalization-pass', 'post-commit-pass', '--test-post-commit-fts-rebuild-failure',
+      ], { cwd: projectRoot, env: { ...process.env, NODE_OPTIONS: '', ZCG_ENABLE_EMBEDDING: '0' }, stdio: ['pipe', 'pipe', 'pipe'] });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.setEncoding('utf8').on('data', (chunk) => { stdout += chunk; });
+      child.stderr.setEncoding('utf8').on('data', (chunk) => { stderr += chunk; });
+      child.once('error', reject);
+      child.once('close', (status) => resolve({ status, stdout, stderr, pid: child.pid! }));
+    });
+    await gate.release();
+    gate = undefined;
+    expect(output.status, `${output.stdout}\n${output.stderr}`).toBe(1);
+    expect(fs.readFileSync(dbPath).equals(oldActiveBytes)).toBe(true);
+    const messages = output.stdout.trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    const result = messages.find((message) => message.type === 'result');
+    expect(result.success).toBe(false);
+    expect(result.errors.map((error: { message: string }) => error.message).join('\n')).toContain('not authorized');
+    const active = new (require('node:sqlite') as typeof import('node:sqlite')).DatabaseSync(dbPath, { readOnly: true });
+    const snapshotFiles = fs.readdirSync(path.dirname(dbPath)).filter((name) => /^post-commit-fts-failure-\d+\.db$/.test(name));
+    expect(snapshotFiles, `${output.stdout}\n${output.stderr}`).toHaveLength(1);
+    const snapshotWorkerPid = Number(snapshotFiles[0].match(/\d+/)![0]);
+    // VACUUM INTO runs in the native descendant. Its worker PID must differ
+    // from the supervisor PID, which is the process directly spawned above.
+    expect(snapshotWorkerPid).not.toBe(output.pid);
+    expect(snapshotWorkerPid).toBeGreaterThan(0);
+    const snapshot = new (require('node:sqlite') as typeof import('node:sqlite')).DatabaseSync(
+      path.join(path.dirname(dbPath), snapshotFiles[0]), { readOnly: true },
+    );
+    try {
+      expect(active.prepare("SELECT COUNT(*) AS count FROM files WHERE path = 'old.ts'").get().count).toBe(1);
+      expect(active.prepare("SELECT COUNT(*) AS count FROM files WHERE path = 'src/new.ts'").get().count).toBe(0);
+      expect(snapshot.prepare("SELECT COUNT(*) AS count FROM files WHERE path = 'src/new.ts'").get().count).toBe(1);
+      expect(snapshot.prepare("SELECT COUNT(*) AS count FROM nodes WHERE name = 'newIndex'").get().count).toBe(1);
+      expect(snapshot.prepare("SELECT value FROM project_metadata WHERE key = 'java_finalization_state'").get().value).toBe('required');
+      expect(snapshot.prepare("SELECT COUNT(*) AS count FROM nodes_fts WHERE nodes_fts MATCH 'newIndex'").get().count).toBe(0);
+      expect(snapshot.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad', 'nodes_au')").get().count).toBe(0);
+    } finally {
+      active.close();
+      snapshot.close();
+    }
+    const dbFiles = fs.readdirSync(path.dirname(dbPath));
+    expect(dbFiles).not.toContain(`zcodegraph.db.rust-tmp-${snapshotWorkerPid}`);
+    expect(dbFiles).not.toContain(`zcodegraph.db.rust-backup-${snapshotWorkerPid}`);
+    expect(dbFiles.filter((name) => /\.rust-(tmp|backup)-\d+$/.test(name))).toEqual([]);
+    await expectGateRecovered();
+    const control = await CodeGraph.open(projectRoot);
+    try {
+      const controlResult = await control.indexAll({ engine: 'rust' });
+      expect(controlResult.success).toBe(true);
+      expect(control.getFile('src/new.ts')).not.toBeNull();
+      expect(control.getNodesInFile('src/new.ts').some((node) => node.name === 'newIndex')).toBe(true);
+    } finally {
+      await control.closeAndWait();
+    }
+  }, 30_000);
 });

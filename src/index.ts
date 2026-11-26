@@ -1258,7 +1258,6 @@ export class CodeGraph {
             getDatabasePath(this.projectRoot),
             finalizationToken,
           );
-          let verificationError: unknown;
           let hasVerificationError = false;
           try {
             const queue = verifier.getDb();
@@ -1300,7 +1299,6 @@ export class CodeGraph {
               );
             }
           } catch (error) {
-            verificationError = error;
             hasVerificationError = true;
             throw error;
           } finally {

@@ -26,13 +26,15 @@ mod ruby;
 mod scala;
 mod swift;
 use index_options::GraphWorkFeatures;
-pub use index_options::{GraphWorkProfile, IndexRequest, JavaFinalizationIdentity, SqliteWriteMode};
-pub use profiling::{start_heap_profiler, HeapProfilerGuard};
-pub use replacement_gate::{acquire_replacement_gate, acquire_worker_lease, OsFileLease};
+pub use index_options::{
+    GraphWorkProfile, IndexRequest, JavaFinalizationIdentity, SqliteWriteMode,
+};
 pub use index_write_lock::{
     IndexWriteLease, LeaseDiagnostics, LeaseOwner, RendezvousState, DIAGNOSTIC_FILE,
     RENDEZVOUS_FILE,
 };
+pub use profiling::{start_heap_profiler, HeapProfilerGuard};
+pub use replacement_gate::{acquire_replacement_gate, acquire_worker_lease, OsFileLease};
 
 #[cfg(feature = "dhat")]
 #[global_allocator]
@@ -1518,8 +1520,6 @@ fn write_index_to_connection(
     conn.execute_batch(SCHEMA_SQL)?;
     ensure_unresolved_refs_metadata_column(conn)?;
     stamp_schema_version(conn)?;
-    stamp_metadata(conn)?;
-    stamp_java_finalization(conn, request)?;
     suspend_node_fts_triggers_for_bulk_write(conn)?;
     let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
     let mut counts = index_javascript_files(
@@ -1527,8 +1527,11 @@ fn write_index_to_connection(
         Path::new(&request.project_path),
         request.graph_work_profile.features(),
         request.parse_walker_diagnostics,
+        request,
     )?;
     counts.profile.sqlite_write_ms += sqlite_setup_ms;
+    #[cfg(feature = "test-fault-injection")]
+    inject_post_commit_fts_rebuild_failure(conn, request)?;
     let fts_rebuild_started = Instant::now();
     rebuild_node_fts_after_bulk_write(conn)?;
     counts.profile.sqlite_write_ms += fts_rebuild_started.elapsed().as_millis();
@@ -7121,6 +7124,48 @@ fn suspend_node_fts_triggers_for_bulk_write(conn: &Connection) -> rusqlite::Resu
     )
 }
 
+#[cfg(feature = "test-fault-injection")]
+fn inject_post_commit_fts_rebuild_failure(
+    conn: &Connection,
+    request: &IndexRequest,
+) -> rusqlite::Result<()> {
+    use rusqlite::hooks::{AuthAction, Authorization};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    if !request.test_post_commit_fts_rebuild_failure {
+        return Ok(());
+    }
+    // index_javascript_files has already returned after its outermost facts
+    // COMMIT. Preserve a consistent, externally readable snapshot before the
+    // real rebuild statement is denied and normal error cleanup discards temp.
+    let snapshot_path = Path::new(&request.index_path)
+        .with_file_name(format!("post-commit-fts-failure-{}.db", std::process::id()));
+    let escaped_path = snapshot_path.to_string_lossy().replace('\'', "''");
+    conn.execute_batch(&format!("VACUUM INTO '{escaped_path}'"))?;
+    let denied = Arc::new(AtomicBool::new(false));
+    let denied_for_hook = Arc::clone(&denied);
+    conn.authorizer(Some(
+        move |context: rusqlite::hooks::AuthContext<'_>| match context.action {
+            AuthAction::Insert {
+                table_name: "nodes_fts",
+                ..
+            } => {
+                denied_for_hook.store(true, Ordering::SeqCst);
+                Authorization::Deny
+            }
+            _ => Authorization::Allow,
+        },
+    ));
+    let result = rebuild_node_fts_after_bulk_write(conn);
+    conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> Authorization>);
+    assert!(
+        denied.load(Ordering::SeqCst),
+        "post-COMMIT fault did not reach nodes_fts rebuild"
+    );
+    result
+}
+
 fn rebuild_node_fts_after_bulk_write(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "
@@ -7163,6 +7208,7 @@ fn index_javascript_files(
     project_path: &Path,
     features: GraphWorkFeatures,
     parse_walker_diagnostics: bool,
+    request: &IndexRequest,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
     let scan_started = Instant::now();
     let files = collect_supported_files(project_path)?;
@@ -7174,6 +7220,8 @@ fn index_javascript_files(
     );
     let transaction_started = Instant::now();
     let tx = conn.transaction()?;
+    stamp_metadata(&tx)?;
+    stamp_java_finalization(&tx, request)?;
     counts.profile.sqlite_write_ms += transaction_started.elapsed().as_millis();
     let mut parsers: HashMap<SourceLanguage, Parser> = HashMap::new();
 
@@ -11011,7 +11059,8 @@ fn extract_java_imports(
     let Some(module_name) = java_scoped_name(node, source)? else {
         return Ok(());
     };
-    let mut import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, "java");
+    let mut import_node =
+        ExtractedNode::symbol(relative_path, "import", &module_name, node, "java");
     import_node.signature = Some(java_declaration_signature(
         "import",
         node.utf8_text(source)?,
@@ -11047,7 +11096,8 @@ fn java_explicit_imports(
             continue;
         }
         let declaration = child.utf8_text(source)?;
-        if declaration.contains('*') || declaration.split_whitespace().any(|part| part == "static") {
+        if declaration.contains('*') || declaration.split_whitespace().any(|part| part == "static")
+        {
             continue;
         }
         if let Some(name) = java_scoped_name(child, source)? {
@@ -11071,7 +11121,10 @@ fn java_declared_types(
     for child in root.named_children(&mut root.walk()) {
         if matches!(
             child.kind(),
-            "class_declaration" | "interface_declaration" | "enum_declaration" | "annotation_type_declaration"
+            "class_declaration"
+                | "interface_declaration"
+                | "enum_declaration"
+                | "annotation_type_declaration"
         ) {
             if let Some(name) = child.child_by_field_name("name") {
                 declared_types.insert(name.utf8_text(source)?.to_string());
@@ -11106,7 +11159,10 @@ fn java_top_level_ordinary_class(node: SyntaxNode) -> Option<SyntaxNode> {
             return None;
         }
         if current.kind() == "class_declaration" {
-            if current.parent().is_some_and(|parent| parent.kind() != "program") {
+            if current
+                .parent()
+                .is_some_and(|parent| parent.kind() != "program")
+            {
                 return None;
             }
             top_level = Some(current);
@@ -11152,7 +11208,9 @@ fn java_declared_type(
         return (!imported.is_empty()).then(|| imported.clone());
     }
     if declared_types.contains(raw) {
-        return Some(package_name.map_or_else(|| raw.to_string(), |package| format!("{package}.{raw}")));
+        return Some(
+            package_name.map_or_else(|| raw.to_string(), |package| format!("{package}.{raw}")),
+        );
     }
     if matches!(raw, "String" | "Integer") {
         return Some(format!("java.lang.{raw}"));
@@ -11200,9 +11258,11 @@ fn java_local_declared_type(
                 if child.kind() == "local_variable_declaration" {
                     declarations.push(child);
                 } else if child.kind() == "expression_statement" {
-                    declarations.extend(child.named_children(&mut child.walk()).filter(
-                        |candidate| candidate.kind() == "local_variable_declaration",
-                    ));
+                    declarations.extend(
+                        child
+                            .named_children(&mut child.walk())
+                            .filter(|candidate| candidate.kind() == "local_variable_declaration"),
+                    );
                 }
             }
             declarations.sort_by_key(|declaration| std::cmp::Reverse(declaration.start_byte()));
@@ -11213,9 +11273,14 @@ fn java_local_declared_type(
                 if java_variable_declarator_name(declaration, source)?.as_deref() != Some(name) {
                     continue;
                 }
-                return Ok(Some(declaration.child_by_field_name("type")
-                    .and_then(|node| node.utf8_text(source).ok())
-                    .and_then(|raw| java_declared_type(raw, package_name, imports, declared_types))));
+                return Ok(Some(
+                    declaration
+                        .child_by_field_name("type")
+                        .and_then(|node| node.utf8_text(source).ok())
+                        .and_then(|raw| {
+                            java_declared_type(raw, package_name, imports, declared_types)
+                        }),
+                ));
             }
         }
         scope = current.parent();
@@ -11244,9 +11309,12 @@ fn java_class_field_declared_type(
         if java_variable_declarator_name(child, source)?.as_deref() != Some(name) {
             continue;
         }
-        return Ok(Some(child.child_by_field_name("type")
-            .and_then(|node| node.utf8_text(source).ok())
-            .and_then(|raw| java_declared_type(raw, package_name, imports, declared_types))));
+        return Ok(Some(
+            child
+                .child_by_field_name("type")
+                .and_then(|node| node.utf8_text(source).ok())
+                .and_then(|raw| java_declared_type(raw, package_name, imports, declared_types)),
+        ));
     }
     Ok(None)
 }
@@ -11342,7 +11410,9 @@ fn java_expression_fact(
                     let declared_type = parameter
                         .child_by_field_name("type")
                         .and_then(|node| node.utf8_text(source).ok())
-                        .and_then(|raw| java_declared_type(raw, package_name, imports, declared_types));
+                        .and_then(|raw| {
+                            java_declared_type(raw, package_name, imports, declared_types)
+                        });
                     return Ok(if let Some(declared_type) = declared_type {
                         serde_json::json!({
                             "kind": "identifier",
@@ -11394,9 +11464,11 @@ fn java_expression_fact(
             }))
         }
         "field_access" => {
-            let is_this = expression.child_by_field_name("object")
+            let is_this = expression
+                .child_by_field_name("object")
                 .is_some_and(|object| object.kind() == "this");
-            let field = expression.child_by_field_name("field")
+            let field = expression
+                .child_by_field_name("field")
                 .filter(|field| field.kind() == "identifier");
             let Some(field) = field.filter(|_| is_this) else {
                 return Ok(serde_json::json!({
@@ -11467,22 +11539,25 @@ fn java_call_fact_metadata(
     imports: &BTreeMap<String, String>,
     declared_types: &BTreeSet<String>,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let caller = java_ancestor(invocation, &["method_declaration", "constructor_declaration"]);
+    let caller = java_ancestor(
+        invocation,
+        &["method_declaration", "constructor_declaration"],
+    );
     let top_level_class = java_top_level_ordinary_class(invocation);
     let eligible_caller = caller.filter(|node| node.kind() == "method_declaration");
     let complete = eligible_caller.is_some() && top_level_class.is_some();
     let caller_fact = if let (Some(caller), Some(class)) = (eligible_caller, top_level_class) {
-        let caller_name = caller.child_by_field_name("name").map(|node| node.utf8_text(source))
+        let caller_name = caller
+            .child_by_field_name("name")
+            .map(|node| node.utf8_text(source))
             .transpose()?
             .unwrap_or("");
-        let class_name = class.child_by_field_name("name").map(|node| node.utf8_text(source))
+        let class_name = class
+            .child_by_field_name("name")
+            .map(|node| node.utf8_text(source))
             .transpose()?
             .unwrap_or("");
-        let qualified_name = format!(
-            "{}::{}",
-            package_name.unwrap_or(relative_path),
-            class_name,
-        );
+        let qualified_name = format!("{}::{}", package_name.unwrap_or(relative_path), class_name,);
         serde_json::json!({
             "nodeId": java_named_symbol_id(relative_path, "method", caller_name, caller),
             "category": "ordinary-method",
@@ -11566,9 +11641,15 @@ fn java_call_fact_metadata(
         .to_string());
     }
     let complete = complete
-        && receiver.get("complete").and_then(serde_json::Value::as_bool) == Some(true)
+        && receiver
+            .get("complete")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
         && arguments.iter().all(|argument| {
-            argument.get("complete").and_then(serde_json::Value::as_bool) == Some(true)
+            argument
+                .get("complete")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
         });
     let metadata = serde_json::json!({
         "zcgJavaCall": {
@@ -17825,6 +17906,19 @@ fn set_metadata(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<(
 }
 
 fn replace_active_index(temp_path: &Path, index_path: &Path) -> io::Result<()> {
+    replace_active_index_with_hooks(temp_path, index_path, || Ok(()), || Ok(()))
+}
+
+fn replace_active_index_with_hooks<BeforeRestore, BeforeCleanup>(
+    temp_path: &Path,
+    index_path: &Path,
+    before_restore: BeforeRestore,
+    before_cleanup: BeforeCleanup,
+) -> io::Result<()>
+where
+    BeforeRestore: FnOnce() -> io::Result<()>,
+    BeforeCleanup: FnOnce() -> io::Result<()>,
+{
     let backup_path = backup_index_path(index_path);
     if backup_path.exists() {
         fs::remove_file(&backup_path)?;
@@ -17836,14 +17930,30 @@ fn replace_active_index(temp_path: &Path, index_path: &Path) -> io::Result<()> {
 
     match fs::rename(temp_path, index_path) {
         Ok(()) => {
+            before_cleanup()?;
             if backup_path.exists() {
-                fs::remove_file(&backup_path)?;
+                fs::remove_file(&backup_path).map_err(|cleanup_error| {
+                    io::Error::new(
+                        cleanup_error.kind(),
+                        format!(
+                            "new active index is already promoted; backup cleanup failed: {cleanup_error}"
+                        ),
+                    )
+                })?;
             }
             Ok(())
         }
         Err(err) => {
             if backup_path.exists() {
-                let _ = fs::rename(&backup_path, index_path);
+                before_restore()?;
+                if let Err(restore_error) = fs::rename(&backup_path, index_path) {
+                    return Err(io::Error::new(
+                        restore_error.kind(),
+                        format!(
+                            "temp index promotion failed: {err}; old active index restoration failed: {restore_error}"
+                        ),
+                    ));
+                }
             }
             Err(err)
         }
@@ -17905,7 +18015,10 @@ fn escape_json(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::hooks::{AuthAction, Authorization};
     use std::env;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     mod test_support {
         use super::*;
@@ -18025,6 +18138,576 @@ mod tests {
     }
 
     #[test]
+    fn native_writer_rolls_back_stamps_when_covered_java_fact_write_fails() {
+        let dir = temp_dir("native-java-fact-rollback");
+        write_file(
+            &dir,
+            "Owner.java",
+            "class Owner { void run() { helper(); } void helper() {} }\n",
+        );
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE project_metadata (
+               key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL
+             );
+             CREATE TABLE files (
+               path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, language TEXT NOT NULL,
+               size INTEGER NOT NULL, modified_at INTEGER NOT NULL, indexed_at INTEGER NOT NULL,
+               node_count INTEGER DEFAULT 0, errors TEXT
+             );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO project_metadata (key, value, updated_at)
+             VALUES ('indexed_with_engine', 'legacy-native', 1)",
+            [],
+        )
+        .unwrap();
+        // The real writer inserts Java nodes/edges/unresolved_refs before files.
+        // Abort at that later statement without replacing the native write path.
+        conn.execute_batch(
+            "CREATE TRIGGER reject_covered_java_file AFTER INSERT ON files
+             WHEN NEW.path = 'Owner.java'
+             BEGIN SELECT RAISE(ABORT, 'covered Java file write sentinel'); END;",
+        )
+        .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-native-rollback".to_string(),
+            pass_id: "pass-native-rollback".to_string(),
+        });
+
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("covered Java file write sentinel"),
+            "unexpected native error: {error}"
+        );
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+            ),
+            "legacy-native"
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM project_metadata WHERE key IN (
+                   'java_fact_generation', 'java_finalization_state',
+                   'java_finalization_run', 'java_finalization_pass',
+                   'indexed_with_engine_version', 'indexed_with_version',
+                   'indexed_with_extraction_version'
+                 )",
+            ),
+            0
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM nodes"), 0);
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM edges"), 0);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM unresolved_refs"),
+            0
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 0);
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_writer_keeps_committed_facts_when_post_commit_fts_rebuild_fails() {
+        let dir = temp_dir("native-post-commit-fts-rebuild");
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        write_index_to_connection(&mut conn, &index_request(&dir, SqliteWriteMode::Disk)).unwrap();
+        // The initial schema script is deliberately one-shot; let the next real
+        // writer invocation replay it on this same staging connection.
+        conn.execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_fts_rebuild BEFORE INSERT ON nodes_fts_docsize
+             BEGIN SELECT RAISE(ABORT, 'post-facts FTS rebuild sentinel'); END;",
+        )
+        .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-post-commit-fts".to_string(),
+            pass_id: "pass-post-commit-fts".to_string(),
+        });
+
+        write_file(&dir, "Owner.java", "class Owner { void find() {} }\n");
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error.to_string().contains("constraint failed"),
+            "unexpected native error: {error}"
+        );
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+            ),
+            "rust"
+        );
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 1);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM nodes WHERE name = 'find'"),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM edges WHERE kind = 'contains'"
+            ),
+            2
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'find'"
+            ),
+            0
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad', 'nodes_au')",
+            ),
+            0
+        );
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_writer_preserves_rebuilt_fts_when_trigger_restoration_fails() {
+        let dir = temp_dir("native-post-commit-trigger-restoration");
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        write_index_to_connection(&mut conn, &index_request(&dir, SqliteWriteMode::Disk)).unwrap();
+        conn.execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        // Arm only after the real bulk-write path suspends nodes_au. This
+        // excludes the earlier schema replay and denies its restoration alone.
+        let suspended = Arc::new(AtomicBool::new(false));
+        let denied = Arc::new(AtomicBool::new(false));
+        let suspended_for_hook = Arc::clone(&suspended);
+        let denied_for_hook = Arc::clone(&denied);
+        conn.authorizer(Some(
+            move |context: rusqlite::hooks::AuthContext<'_>| match context.action {
+                AuthAction::DropTrigger {
+                    trigger_name: "nodes_au",
+                    ..
+                } => {
+                    suspended_for_hook.store(true, Ordering::SeqCst);
+                    Authorization::Allow
+                }
+                AuthAction::CreateTrigger {
+                    trigger_name: "nodes_au",
+                    table_name: "nodes",
+                } if suspended_for_hook.load(Ordering::SeqCst) => {
+                    denied_for_hook.store(true, Ordering::SeqCst);
+                    Authorization::Deny
+                }
+                _ => Authorization::Allow,
+            },
+        ));
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-post-commit-trigger-restore".to_string(),
+            pass_id: "pass-post-commit-trigger-restore".to_string(),
+        });
+
+        write_file(&dir, "Owner.java", "class Owner { void find() {} }\n");
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error.to_string().contains("not authorized"),
+            "unexpected native error: {error}"
+        );
+        assert!(suspended.load(Ordering::SeqCst));
+        assert!(denied.load(Ordering::SeqCst));
+        conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> Authorization>);
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 1);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM nodes WHERE name = 'find'"),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'find'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad')",
+            ),
+            2
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name = 'nodes_au'",
+            ),
+            0
+        );
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_writer_retains_committed_fts_when_post_processing_fails() {
+        let dir = temp_dir("native-post-processing-failure");
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        write_index_to_connection(&mut conn, &index_request(&dir, SqliteWriteMode::Disk)).unwrap();
+        // The initial schema script is deliberately one-shot; let the next real
+        // writer invocation replay it on this same staging connection.
+        conn.execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_post_processing_edge AFTER INSERT ON edges
+             WHEN NEW.edgeOrigin = 'rust-finalization' AND NEW.kind = 'calls'
+             BEGIN SELECT RAISE(ABORT, 'post-facts same-file edge sentinel'); END;",
+        )
+        .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-post-processing".to_string(),
+            pass_id: "pass-post-processing".to_string(),
+        });
+
+        write_file(
+            &dir,
+            "calls.ts",
+            "export function target(): number { return 1; }\n\
+             export function caller(): number { return target(); }\n",
+        );
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("post-facts same-file edge sentinel"),
+            "unexpected native error: {error}"
+        );
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 1);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM nodes WHERE name = 'caller'"),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'caller'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad', 'nodes_au')",
+            ),
+            3
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM edges WHERE kind = 'calls' AND edgeOrigin = 'rust-finalization'",
+            ),
+            0
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM unresolved_refs
+                 WHERE reference_kind = 'calls' AND reference_name = 'target'",
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_post_processing_failure_does_not_promote_committed_staging_facts() {
+        let dir = temp_dir("native-post-processing-active-safety");
+        write_file(
+            &dir,
+            "old.ts",
+            "export function oldIndex(): number { return 1; }\n",
+        );
+        let index_path = db_path(&dir);
+        fs::create_dir_all(index_path.parent().unwrap()).unwrap();
+        let active = Connection::open(&index_path).unwrap();
+        active
+            .execute_batch(
+                "CREATE TABLE files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL);
+                 INSERT INTO files VALUES ('old.ts', 'old-active-snapshot');",
+            )
+            .unwrap();
+        drop(active);
+        write_file(
+            &dir,
+            "calls.ts",
+            "export function target(): number { return 1; }\n\
+             export function caller(): number { return target(); }\n",
+        );
+        let write_paths = SqliteIndexWritePaths::new(&index_path);
+        write_paths.prepare_temp_path().unwrap();
+        let mut staging = Connection::open(write_paths.temp_path()).unwrap();
+        write_index_to_connection(&mut staging, &index_request(&dir, SqliteWriteMode::Disk))
+            .unwrap();
+        staging
+            .execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        staging
+            .execute_batch(
+                "CREATE TRIGGER reject_post_processing_edge AFTER INSERT ON edges
+                 WHEN NEW.edgeOrigin = 'rust-finalization' AND NEW.kind = 'calls'
+                 BEGIN SELECT RAISE(ABORT, 'post-facts same-file edge sentinel'); END;",
+            )
+            .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-active-safety".to_string(),
+            pass_id: "pass-active-safety".to_string(),
+        });
+
+        let error = write_index_to_connection(&mut staging, &request).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("post-facts same-file edge sentinel"));
+        drop(staging);
+
+        let staging_reader = Connection::open(write_paths.temp_path()).unwrap();
+        assert_eq!(
+            sqlite_count(
+                &staging_reader,
+                "SELECT count(*) FROM files WHERE path = 'calls.ts'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &staging_reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'caller'",
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_string(
+                &staging_reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        drop(staging_reader);
+        let active_reader = Connection::open(&index_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &active_reader,
+                "SELECT content_hash FROM files WHERE path = 'old.ts'"
+            ),
+            "old-active-snapshot"
+        );
+        assert_eq!(
+            sqlite_count(
+                &active_reader,
+                "SELECT count(*) FROM sqlite_master WHERE name = 'nodes'"
+            ),
+            0
+        );
+        drop(active_reader);
+
+        // Mirrors the enclosing writer's discard branch; no replacement is run.
+        write_paths.discard_temp_path();
+        assert!(!write_paths.temp_path().exists());
+        let active_after_discard = Connection::open(&index_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &active_after_discard,
+                "SELECT content_hash FROM files WHERE path = 'old.ts'",
+            ),
+            "old-active-snapshot"
+        );
+        drop(active_after_discard);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_restores_the_old_active_index_when_temp_promotion_fails() {
+        let dir = temp_dir("replacement-old-active-restore");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        let active = Connection::open(&index_path).unwrap();
+        active
+            .execute_batch(
+                "CREATE TABLE files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL);
+                 INSERT INTO files VALUES ('old.ts', 'old-active-snapshot');",
+            )
+            .unwrap();
+        drop(active);
+        // No backup exists and the active rename can succeed. The absent temp
+        // input therefore reaches the temp -> active rename, not pre-cleanup.
+        assert!(!temp_path.exists());
+        assert!(!backup_path.exists());
+
+        let error = replace_active_index(&temp_path, &index_path).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert!(!backup_path.exists());
+        let active_reader = Connection::open(&index_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &active_reader,
+                "SELECT content_hash FROM files WHERE path = 'old.ts'",
+            ),
+            "old-active-snapshot"
+        );
+        drop(active_reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_reports_backup_restore_failure_and_retains_the_backup() {
+        let dir = temp_dir("replacement-backup-restore-failure");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("missing-temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        assert!(!temp_path.exists());
+        assert!(!backup_path.exists());
+
+        let error = replace_active_index_with_hooks(
+            &temp_path,
+            &index_path,
+            || {
+                // A real destination-path collision makes backup -> active
+                // rename fail after temp promotion has already failed.
+                fs::create_dir(&index_path)
+            },
+            || Ok(()),
+        )
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("temp index promotion failed"), "{message}");
+        assert!(
+            message.contains("old active index restoration failed"),
+            "{message}"
+        );
+        assert!(matches!(
+            error.kind(),
+            io::ErrorKind::AlreadyExists | io::ErrorKind::PermissionDenied
+        ));
+        assert!(index_path.is_dir());
+        assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");
+        assert!(!temp_path.exists());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_reports_cleanup_failure_after_new_active_is_promoted() {
+        let dir = temp_dir("replacement-post-promotion-cleanup-failure");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        fs::write(&temp_path, b"new-staged-index").unwrap();
+        assert!(!backup_path.exists());
+
+        let error = replace_active_index_with_hooks(
+            &temp_path,
+            &index_path,
+            || Ok(()),
+            || {
+                // Preserve proof that promotion already happened, then replace
+                // the old backup with a directory that remove_file must reject.
+                assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+                assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");
+                fs::remove_file(&backup_path)?;
+                fs::create_dir(&backup_path)
+            },
+        )
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(
+            message.contains("new active index is already promoted"),
+            "{message}"
+        );
+        assert!(message.contains("backup cleanup failed"), "{message}");
+        assert!(matches!(
+            error.kind(),
+            io::ErrorKind::PermissionDenied | io::ErrorKind::IsADirectory
+        ));
+        assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+        assert!(!temp_path.exists());
+        assert!(backup_path.is_dir());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_rejects_a_non_file_backup_before_moving_the_active_index() {
+        let dir = temp_dir("replacement-backup-cleanup");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        fs::write(&temp_path, b"new-staged-index").unwrap();
+        // std::fs::remove_file rejects a directory on Windows and Unix. This
+        // reaches backup pre-cleanup, not either active/temp rename branch.
+        fs::create_dir(&backup_path).unwrap();
+
+        let error = replace_active_index(&temp_path, &index_path).unwrap_err();
+        assert!(matches!(
+            error.kind(),
+            io::ErrorKind::PermissionDenied | io::ErrorKind::IsADirectory
+        ));
+        assert_eq!(fs::read(&index_path).unwrap(), b"old-active-index");
+        assert!(temp_path.exists());
+        assert!(backup_path.is_dir());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
     fn indexes_minimal_python_symbols_and_imports() {
         let dir = temp_dir("python-baseline");
         fs::write(
@@ -18056,6 +18739,7 @@ mod tests {
             &dir,
             GraphWorkProfile::MatchedTsJs.features(),
             false,
+            &index_request(&dir, SqliteWriteMode::Disk),
         )
         .unwrap();
 
@@ -21355,13 +22039,10 @@ mod tests {
 
     #[test]
     fn rust_core_materializes_java_interface_superinterface_signature() {
-        // 1-2-12-4: `interface VetRepository extends Repository<Vet, Integer>`
-        // must record `extends Repository` on the interface node's signature
-        // column. `Repository` is an external Spring Data type with no node in
-        // the index, so the extends ref would be cleaned up by the resolver —
-        // the materialized signature is the durable graph signal the dead-code
-        // rubric consumes. A plain interface with no extends keeps a NULL
-        // signature.
+        // 1-2-12-4: an interface declaration retains its complete, byte-delimited
+        // header, including external and generic superinterfaces. The existing
+        // TypeScript semantic projection derives `extends Repository` for the
+        // dead-code rubric; native storage does not duplicate that projection.
         let dir = temp_dir("rust-java-superinterface-signature");
         let src = dir.join("com").join("example");
         fs::create_dir_all(&src).unwrap();
@@ -21402,8 +22083,13 @@ mod tests {
             .unwrap();
         assert_eq!(
             sig.as_deref(),
-            Some("extends Repository"),
-            "VetRepository must materialize its (generics-stripped) superinterface"
+            Some(concat!(
+                "zcg-java-declaration/v1\n",
+                "category=ordinary-interface\n",
+                "header-bytes=63\n\n",
+                "public interface VetRepository extends Repository<Vet, Integer>"
+            )),
+            "VetRepository must retain its complete declaration header"
         );
 
         let plain_sig: Option<String> = conn
@@ -21413,10 +22099,15 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert!(
-            plain_sig.is_none(),
-            "Plain interface with no extends must keep a NULL signature, got {:?}",
-            plain_sig
+        assert_eq!(
+            plain_sig.as_deref(),
+            Some(concat!(
+                "zcg-java-declaration/v1\n",
+                "category=ordinary-interface\n",
+                "header-bytes=22\n\n",
+                "public interface Plain"
+            )),
+            "Plain must retain its complete declaration header"
         );
 
         let multi_sig: Option<String> = conn
@@ -21428,8 +22119,13 @@ mod tests {
             .unwrap();
         assert_eq!(
             multi_sig.as_deref(),
-            Some("extends Alpha,Beta"),
-            "Multi must materialize all superinterfaces, generics stripped"
+            Some(concat!(
+                "zcg-java-declaration/v1\n",
+                "category=ordinary-interface\n",
+                "header-bytes=50\n\n",
+                "public interface Multi extends Alpha, Beta<String>"
+            )),
+            "Multi must retain all superinterfaces and their generic arguments"
         );
         cleanup_temp_dir(dir);
     }

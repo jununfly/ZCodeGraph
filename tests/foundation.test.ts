@@ -14,7 +14,8 @@ import { rebuildEmbeddingQueue } from '../src/embedding/queue';
 import { createDatabase } from '../src/db/sqlite-adapter';
 import type { SqliteDatabase } from '../src/db/sqlite-adapter';
 import { preflightJavaWrites } from '../src/extraction/java-write-preflight';
-import { Node, Edge } from '../src/types';
+import { Node, Edge, FileRecord } from '../src/types';
+import { QueryBuilder } from '../src/db/queries';
 import { isInitialized, getCodeGraphDir, validateDirectory } from '../src/directory';
 import { validatePathWithinRoot } from '../src/utils';
 import {
@@ -783,6 +784,53 @@ describe('Database Connection', () => {
     }
   });
 
+  it('1-9-15-2: closes a verifier reader when its configuration fails after the guard', () => {
+    const dbPath = path.join(tempDir, 'verifier-configuration-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    const configurationError = new Error('verifier configuration primary sentinel');
+    let reader: SqliteDatabase | undefined;
+    let closes = 0;
+    let thrown: unknown;
+    try {
+      DatabaseConnection.openForJavaFinalizationVerification(
+        dbPath,
+        token,
+        (_guardPath, options) => {
+          const database = createDatabase(dbPath, options);
+          if (options?.open !== false && options.readOnly) {
+            reader = database.db;
+            const close = reader.close.bind(reader);
+            reader.close = () => {
+              closes++;
+              close();
+            };
+            reader.pragma = (statement) => {
+              if (statement === 'busy_timeout = 5000') throw configurationError;
+              throw new Error(`unexpected verifier configuration: ${statement}`);
+            };
+          }
+          return database;
+        },
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBe(configurationError);
+    expect(reader).toBeDefined();
+    expect(closes).toBe(1);
+    expect(reader!.open).toBe(false);
+  });
+
   it('1-9-15-2: preserves queue reconciliation when verifier close also fails', async () => {
     fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
     const cg = CodeGraph.initSync(tempDir);
@@ -1061,6 +1109,61 @@ describe('Database Connection', () => {
       }
     } finally {
       cg.close();
+    }
+  });
+
+  it('1-9-15-2: closes a reader when its configuration fails after the guard', () => {
+    const dbPath = path.join(tempDir, 'reader-configuration-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_run', 'run-1', 1);
+    metadata.run('java_finalization_pass', 'pass-1', 1);
+    setup.close();
+
+    const token = issueJavaFinalizationToken('run-1', 'pass-1');
+    const configurationError = new Error('reader configuration primary sentinel');
+    let reader: SqliteDatabase | undefined;
+    let closes = 0;
+    let thrown: unknown;
+    try {
+      DatabaseConnection.openForJavaFinalization(
+        dbPath,
+        token,
+        (_guardPath, options) => {
+          const database = createDatabase(dbPath, options);
+          if (!options?.readOnly) {
+            reader = database.db;
+            const close = reader.close.bind(reader);
+            reader.close = () => {
+              closes++;
+              close();
+            };
+            reader.pragma = (statement) => {
+              if (statement === 'busy_timeout = 5000') throw configurationError;
+              throw new Error(`unexpected reader configuration: ${statement}`);
+            };
+          }
+          return database;
+        },
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBe(configurationError);
+    expect(reader).toBeDefined();
+    expect(closes).toBe(1);
+    expect(reader!.open).toBe(false);
+    const reopened = DatabaseConnection.openForJavaFinalization(dbPath, token);
+    try {
+      expect(reopened.getDb().prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+        'java_finalization_state',
+      )).toEqual({ value: 'required' });
+    } finally {
+      reopened.close();
     }
   });
 
@@ -2362,6 +2465,93 @@ describe('Database Connection', () => {
     opened.close();
   });
 
+  it('1-9-15-2: closes a public complete reader when configuration fails', () => {
+    const dbPath = path.join(tempDir, 'complete-reader-configuration-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'complete', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    setup.close();
+
+    const configurationError = new Error('public reader configuration primary sentinel');
+    let reader: SqliteDatabase | undefined;
+    let closes = 0;
+    let thrown: unknown;
+    try {
+      DatabaseConnection.open(dbPath, (_guardPath, options) => {
+        const database = createDatabase(dbPath, options);
+        if (!options?.readOnly) {
+          reader = database.db;
+          const close = reader.close.bind(reader);
+          reader.close = () => {
+            closes++;
+            close();
+          };
+          reader.pragma = (statement) => {
+            if (statement === 'busy_timeout = 5000') throw configurationError;
+            throw new Error(`unexpected complete-reader configuration: ${statement}`);
+          };
+        }
+        return database;
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBe(configurationError);
+    expect(reader).toBeDefined();
+    expect(closes).toBe(1);
+    expect(reader!.open).toBe(false);
+    const reopened = DatabaseConnection.open(dbPath);
+    try {
+      expect(reopened.getDb().prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+        'java_finalization_state',
+      )).toEqual({ value: 'complete' });
+    } finally {
+      reopened.close();
+    }
+  });
+
+  it('1-9-15-2: preserves reader configuration when its cleanup close also fails', () => {
+    const dbPath = path.join(tempDir, 'complete-reader-close-failed.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    metadata.run('java_finalization_state', 'complete', 1);
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    setup.close();
+
+    const configurationError = new Error('reader configuration primary sentinel');
+    let closes = 0;
+    let releaseInjectedHandle: (() => void) | undefined;
+    let thrown: unknown;
+    try {
+      DatabaseConnection.open(dbPath, (_guardPath, options) => {
+        const database = createDatabase(dbPath, options);
+        if (!options?.readOnly) {
+          database.db.pragma = () => {
+            throw configurationError;
+          };
+          const close = database.db.close.bind(database.db);
+          releaseInjectedHandle = close;
+          database.db.close = () => {
+            closes++;
+            throw new Error('reader close cleanup sentinel');
+          };
+        }
+        return database;
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBe(configurationError);
+    expect(closes).toBe(1);
+    // The injected close failure must not strand this test process's own handle.
+    releaseInjectedHandle!();
+  });
+
   it('1-9-15: reopens a complete Java graph without any database-file mutation', () => {
     const dbPath = path.join(tempDir, 'complete-read-only.db');
     const setup = DatabaseConnection.initialize(dbPath);
@@ -2582,6 +2772,211 @@ describe('Database Connection', () => {
     const result = validatePathWithinRoot(tempDir, '../outside.ts');
     expect(result).toBeNull();
   });
+});
+
+describe('1-9-15-2: committed graph views', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    cleanupTempDir(tempDir);
+  });
+
+  it('reconciles raw, public, graph and rust-hybrid views from fresh committed readers', async () => {
+    const javaSource = 'class Owner { void find() {} }\n';
+    const typescriptSource = 'export function alpha(): number { return 1; }\n';
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), javaSource);
+    fs.writeFileSync(path.join(tempDir, 'page.ts'), typescriptSource);
+    const cg = CodeGraph.initSync(tempDir);
+    const previousRustCore = process.env.ZCG_RUST_CORE_BINARY;
+    process.env.ZCG_RUST_CORE_BINARY = path.resolve(
+      __dirname,
+      '..',
+      'target',
+      'debug',
+      process.platform === 'win32' ? 'zcodegraph-core.exe' : 'zcodegraph-core',
+    );
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust-hybrid',
+        options: IndexOptions,
+        dependencies: {
+          openFinalizationVerifier(
+            dbPath: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): DatabaseConnection;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    let committed: {
+      files: FileRecord[];
+      nodes: Node[];
+      edges: Array<{ source: string; target: string; kind: Edge['kind'] }>;
+      unresolvedReferences: unknown[];
+      metadata: Record<string, string>;
+      queue: ReturnType<CodeGraph['getEmbeddingQueueSnapshot']>;
+    } | undefined;
+    let verifierCloses = 0;
+    let verifierToken: ReturnType<typeof issueJavaFinalizationToken> | undefined;
+    try {
+      const result = await evaluate.call(cg, 'rust-hybrid', {}, {
+        openFinalizationVerifier(dbPath, token) {
+          const verifier = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+          const raw = verifier.getDb();
+          const queries = new QueryBuilder(raw);
+          expect(raw.prepare('SELECT value FROM project_metadata WHERE key = ?').get(
+            'java_finalization_state',
+          )).toEqual({ value: 'required' });
+          expect(queries.getMetadata('java_finalization_run')).toBe(token.runId);
+          expect(queries.getMetadata('java_finalization_pass')).toBe(token.passId);
+          committed = {
+            files: queries.getAllFiles(),
+            nodes: queries.getAllNodes().sort((a, b) => a.id.localeCompare(b.id)),
+            edges: (raw.prepare(
+              'SELECT source, target, kind FROM edges ORDER BY source, target, kind, id',
+            ).all() as Array<{ source: string; target: string; kind: Edge['kind'] }>),
+            unresolvedReferences: queries.getUnresolvedReferences().sort((a, b) =>
+              (a.rowid ?? 0) - (b.rowid ?? 0)),
+            metadata: queries.getAllMetadata(),
+            queue: cg.getEmbeddingQueueSnapshot.call({
+              db: { getDb: () => raw },
+            } as CodeGraph),
+          };
+          verifierToken = token;
+          const close = verifier.close.bind(verifier);
+          verifier.close = () => {
+            verifierCloses++;
+            close();
+          };
+          return verifier;
+        },
+      });
+      expect(result).toEqual(expect.objectContaining({ success: true, errors: [] }));
+      expect(committed).toBeDefined();
+      expect(verifierCloses).toBe(1);
+      expect(verifierToken).toBeDefined();
+      const expectedFiles = ['Owner.java', 'page.ts'];
+      expect(committed!.files.map((file) => file.path)).toEqual(expectedFiles);
+      expect(committed!.files.map((file) => file.language)).toEqual(['java', 'typescript']);
+      expect(committed!.files.map((file) => file.size)).toEqual([
+        Buffer.byteLength(javaSource),
+        Buffer.byteLength(typescriptSource),
+      ]);
+      expect(cg.getFiles()).toEqual(committed!.files);
+      expect(cg.getFiles().map((file) => file.path)).toEqual(expectedFiles);
+      for (const file of committed!.files) {
+        expect(cg.getFile(file.path)).toEqual(file);
+        const nodes = committed!.nodes.filter((node) => node.filePath === file.path);
+        expect(nodes.length).toBeGreaterThan(0);
+        expect(nodes.length).toBe(file.nodeCount);
+        expect(cg.getNodesInFile(file.path).sort((a, b) => a.id.localeCompare(b.id))).toEqual(nodes);
+      }
+
+      const publicAdjacency = new Map<string, Edge[]>();
+      const publicReverseAdjacency = new Map<string, Edge[]>();
+      for (const node of committed!.nodes) {
+        expect(cg.getNode(node.id)).toEqual(node);
+        const outgoing = cg.getOutgoingEdges(node.id);
+        const incoming = cg.getIncomingEdges(node.id);
+        publicAdjacency.set(node.id, outgoing);
+        publicReverseAdjacency.set(node.id, incoming);
+        expect([...outgoing, ...incoming].every((edge) =>
+          committed!.nodes.some((candidate) => candidate.id === edge.source) &&
+          committed!.nodes.some((candidate) => candidate.id === edge.target))).toBe(true);
+      }
+      const edgeKey = (edge: Edge) => `${edge.source}\0${edge.target}\0${edge.kind}`;
+      expect([...publicAdjacency.values()].flat().map(edgeKey).sort()).toEqual(
+        committed!.edges.map(edgeKey).sort(),
+      );
+      expect([...publicReverseAdjacency.values()].flat().map(edgeKey).sort()).toEqual(
+        committed!.edges.map(edgeKey).sort(),
+      );
+
+      const owner = committed!.nodes.find((node) =>
+        node.filePath === 'Owner.java' && node.kind === 'class' && node.name === 'Owner');
+      const find = committed!.nodes.find((node) =>
+        node.filePath === 'Owner.java' && node.kind === 'method' && node.name === 'find');
+      expect(owner).toBeDefined();
+      expect(find).toBeDefined();
+      const contains = { source: owner!.id, target: find!.id, kind: 'contains' as const };
+      expect(committed!.edges).toContainEqual(contains);
+      expect(publicAdjacency.get(owner!.id)).toContainEqual(expect.objectContaining(contains));
+      expect(publicReverseAdjacency.get(find!.id)).toContainEqual(expect.objectContaining(contains));
+      const graph = cg.traverse(owner!.id, { maxDepth: 1, edgeKinds: ['contains'] });
+      expect(graph.entryNodes).toEqual([owner!.id]);
+      expect(graph.nodes.get(owner!.id)).toEqual(cg.getNode(owner!.id));
+      expect(graph.nodes.get(find!.id)).toEqual(cg.getNode(find!.id));
+      expect(graph.edges).toContainEqual(expect.objectContaining(contains));
+      expect(cg.getChildren(owner!.id)).toEqual([find]);
+      const freshGraphReader = CodeGraph.openSync(tempDir);
+      try {
+        expect(freshGraphReader.traverse(owner!.id, {
+          maxDepth: 1,
+          edgeKinds: ['contains'],
+        })).toEqual(graph);
+      } finally {
+        freshGraphReader.close();
+      }
+
+      expect(committed!.metadata.java_finalization_state).toBe('required');
+      expect(committed!.metadata.java_fact_generation).toBe('p0b-java-v1');
+      expect(committed!.metadata.java_finalization_run).toBe(verifierToken!.runId);
+      expect(committed!.metadata.java_finalization_pass).toBe(verifierToken!.passId);
+      expect(committed!.metadata.indexed_with_engine).toBe('rust-hybrid');
+      const expectedHybrid = expect.objectContaining({
+        engineByLanguage: { java: 'rust', typescript: 'rust' },
+        fallbackByLanguage: {},
+        fallbackFileCount: 0,
+        fallbackReasonTaxonomy: {},
+        fallbackState: 'healthy',
+        pendingFallbacks: ['rust-owned-parse-gap'],
+      });
+      expect(JSON.parse(committed!.metadata.indexed_with_hybrid_metadata!)).toEqual(expectedHybrid);
+      expect(cg.getIndexBuildInfo()).toEqual(expect.objectContaining({
+        engine: 'rust-hybrid',
+        hybrid: expectedHybrid,
+      }));
+      expect(committed!.queue).toHaveLength(2);
+      expect(committed!.queue).toEqual(committed!.files.map((file) => ({
+        filePath: file.path,
+        contentHash: file.contentHash,
+        status: 'pending',
+      })));
+      expect(cg.getEmbeddingQueueSnapshot()).toEqual(committed!.queue);
+
+      const completedReader = DatabaseConnection.open(getDatabasePath(tempDir));
+      try {
+        const completedQueries = new QueryBuilder(completedReader.getDb());
+        expect(completedQueries.getMetadata('java_finalization_state')).toBe('complete');
+        expect(completedQueries.getMetadata('java_finalization_run')).toBe(verifierToken!.runId);
+        expect(completedQueries.getMetadata('java_finalization_pass')).toBe(verifierToken!.passId);
+        const { java_finalization_state: _required, ...committedGraphMetadata } = committed!.metadata;
+        expect(completedQueries.getAllMetadata()).toEqual({
+          ...committedGraphMetadata,
+          java_finalization_state: 'complete',
+        });
+        expect(completedQueries.getAllFiles()).toEqual(committed!.files);
+        expect(completedQueries.getAllNodes().sort((a, b) => a.id.localeCompare(b.id)))
+          .toEqual(committed!.nodes);
+        expect(completedReader.getDb().prepare(
+          'SELECT source, target, kind FROM edges ORDER BY source, target, kind, id',
+        ).all()).toEqual(committed!.edges);
+        expect(completedQueries.getUnresolvedReferences()).toEqual(committed!.unresolvedReferences);
+      } finally {
+        completedReader.close();
+      }
+    } finally {
+      cg.close();
+      if (previousRustCore == null) {
+        delete process.env.ZCG_RUST_CORE_BINARY;
+      } else {
+        process.env.ZCG_RUST_CORE_BINARY = previousRustCore;
+      }
+    }
+  }, 60_000);
 });
 
 describe('Query Builder', () => {

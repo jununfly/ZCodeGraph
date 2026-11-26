@@ -124,9 +124,17 @@ tree-sitter-typescript = "0.23"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
+[dev-dependencies]
+# Test-only SQLite authorizer fault injection; the production writer does not
+# install hooks or enable this optional API.
+rusqlite = { version = "0.32", features = ["hooks"] }
+
 [features]
 default = []
 dhat = ["dep:dhat"]
+# Opt-in only for real-process fault-injection tests. Normal builds neither
+# recognize the hidden request option nor install an SQLite authorizer.
+test-fault-injection = ["rusqlite/hooks"]
 
 [[bin]]
 name = "scripted-index-fixture"

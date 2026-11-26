@@ -95,7 +95,6 @@ function guardJavaFinalizationBeforeConfiguration(
   databaseFactory: SqliteDatabaseFactory = createDatabase,
 ): boolean {
   const { db } = databaseFactory(dbPath, { readOnly: true, open: false });
-  let guardError: unknown;
   let hasGuardError = false;
   try {
     db.openConnection?.();
@@ -126,7 +125,6 @@ function guardJavaFinalizationBeforeConfiguration(
 
     return assertOrdinaryJavaFinalization(db) === 'complete';
   } catch (error) {
-    guardError = error;
     hasGuardError = true;
     throw error;
   } finally {
@@ -228,30 +226,41 @@ export class DatabaseConnection {
   /**
    * Open an existing database
    */
-  static open(dbPath: string): DatabaseConnection {
+  static open(
+    dbPath: string,
+    databaseFactory: SqliteDatabaseFactory = createDatabase,
+  ): DatabaseConnection {
     if (!fs.existsSync(dbPath)) {
       throw new Error(`Database not found: ${dbPath}`);
     }
 
-    const completeJavaGraph = guardJavaFinalizationBeforeConfiguration(dbPath);
+    const completeJavaGraph = guardJavaFinalizationBeforeConfiguration(dbPath, undefined, databaseFactory);
 
-    const { db, backend } = createDatabase(dbPath);
+    const { db, backend } = databaseFactory(dbPath);
+    try {
+      configureConnection(db, { wal: !completeJavaGraph });
 
-    configureConnection(db, { wal: !completeJavaGraph });
+      // A complete v1 graph was admitted only with the exact current schema.
+      // Reopening its readers must not perform configuration or migration writes.
+      if (completeJavaGraph) return new DatabaseConnection(db, dbPath, backend);
 
-    // A complete v1 graph was admitted only with the exact current schema.
-    // Reopening its readers must not perform configuration or migration writes.
-    if (completeJavaGraph) return new DatabaseConnection(db, dbPath, backend);
+      // Check and run migrations if needed
+      const conn = new DatabaseConnection(db, dbPath, backend);
+      const currentVersion = getCurrentVersion(db);
 
-    // Check and run migrations if needed
-    const conn = new DatabaseConnection(db, dbPath, backend);
-    const currentVersion = getCurrentVersion(db);
+      if (currentVersion < CURRENT_SCHEMA_VERSION) {
+        runMigrations(db, currentVersion);
+      }
 
-    if (currentVersion < CURRENT_SCHEMA_VERSION) {
-      runMigrations(db, currentVersion);
+      return conn;
+    } catch (error) {
+      try {
+        if (db.open) db.close();
+      } catch {
+        // The reader configuration failure remains the primary error.
+      }
+      throw error;
     }
-
-    return conn;
   }
 
   /**
@@ -265,19 +274,38 @@ export class DatabaseConnection {
   ): DatabaseConnection {
     guardJavaFinalizationBeforeConfiguration(dbPath, token, databaseFactory);
     const { db, backend } = databaseFactory(dbPath);
-    configureConnection(db);
-    return new DatabaseConnection(db, dbPath, backend, token);
+    try {
+      configureConnection(db);
+      return new DatabaseConnection(db, dbPath, backend, token);
+    } catch (error) {
+      try {
+        if (db.open) db.close();
+      } catch {
+        // The reader configuration failure remains the primary error.
+      }
+      throw error;
+    }
   }
 
   /** A fresh committed reader; this never becomes the named marker writer. */
   static openForJavaFinalizationVerification(
     dbPath: string,
     token: JavaFinalizationToken,
+    databaseFactory: SqliteDatabaseFactory = createDatabase,
   ): DatabaseConnection {
-    guardJavaFinalizationBeforeConfiguration(dbPath, token);
-    const { db, backend } = createDatabase(dbPath, { readOnly: true });
-    configureConnection(db, { wal: false });
-    return new DatabaseConnection(db, dbPath, backend, token);
+    guardJavaFinalizationBeforeConfiguration(dbPath, token, databaseFactory);
+    const { db, backend } = databaseFactory(dbPath, { readOnly: true });
+    try {
+      configureConnection(db, { wal: false });
+      return new DatabaseConnection(db, dbPath, backend, token);
+    } catch (error) {
+      try {
+        if (db.open) db.close();
+      } catch {
+        // The verifier configuration failure remains the primary error.
+      }
+      throw error;
+    }
   }
 
   /**

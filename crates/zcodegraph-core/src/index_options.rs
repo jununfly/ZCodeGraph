@@ -9,6 +9,8 @@ pub struct IndexRequest {
     pub sqlite_write_mode: SqliteWriteMode,
     pub parse_walker_diagnostics: bool,
     pub java_finalization: Option<JavaFinalizationIdentity>,
+    #[cfg(feature = "test-fault-injection")]
+    pub test_post_commit_fts_rebuild_failure: bool,
 }
 
 impl IndexRequest {
@@ -30,6 +32,8 @@ impl IndexRequest {
         let mut parse_walker_diagnostics = false;
         let mut java_finalization_run: Option<String> = None;
         let mut java_finalization_pass: Option<String> = None;
+        #[cfg(feature = "test-fault-injection")]
+        let mut test_post_commit_fts_rebuild_failure = false;
         let mut i = 1;
         while i < args.len() {
             match args[i].as_str() {
@@ -59,6 +63,10 @@ impl IndexRequest {
                 }
                 "--force" => force = true,
                 "--replacement-gate-externally-held" => {}
+                #[cfg(feature = "test-fault-injection")]
+                "--test-post-commit-fts-rebuild-failure" => {
+                    test_post_commit_fts_rebuild_failure = true;
+                }
                 "--verbose" => verbose = true,
                 "--parse-walker-diagnostics" => parse_walker_diagnostics = true,
                 "--java-finalization-run" => {
@@ -93,6 +101,12 @@ impl IndexRequest {
             }
             i += 1;
         }
+        #[cfg(feature = "test-fault-injection")]
+        if test_post_commit_fts_rebuild_failure && !borrowed_replacement_gate {
+            return Err(
+                "post-COMMIT test injection requires an externally held replacement gate".into(),
+            );
+        }
         Ok(IndexRequest {
             engine: engine.unwrap_or_else(|| "rust".to_string()),
             project_path: project_path.ok_or_else(|| "--project-path is required".to_string())?,
@@ -112,6 +126,8 @@ impl IndexRequest {
                         .to_string(),
                 ),
             },
+            #[cfg(feature = "test-fault-injection")]
+            test_post_commit_fts_rebuild_failure,
         })
     }
 }
