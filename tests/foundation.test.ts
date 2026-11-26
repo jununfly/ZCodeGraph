@@ -892,6 +892,250 @@ describe('Database Connection', () => {
     }
   });
 
+  it('1-9-15-2: preserves verifier open failure when graph close also fails and commits failed', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          openFinalizationGraph(
+            projectRoot: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): Promise<CodeGraph>;
+          openFinalizationVerifier(): DatabaseConnection;
+          reopenDatabase(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const verifierError = new Error('verifier open primary sentinel');
+    const graphCloseError = new Error('verifier failure graph close cleanup sentinel');
+    let verifierAttempts = 0;
+    let graphCloses = 0;
+    let releases = 0;
+    let reopens = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.resolve();
+            },
+          });
+        },
+        async openFinalizationGraph(projectRoot, token) {
+          const graph = await CodeGraph.openForJavaFinalization(projectRoot, token);
+          const close = graph.close.bind(graph);
+          graph.close = () => {
+            graphCloses++;
+            close();
+            throw graphCloseError;
+          };
+          return graph;
+        },
+        openFinalizationVerifier() {
+          verifierAttempts++;
+          throw verifierError;
+        },
+        reopenDatabase() {
+          reopens++;
+        },
+      })).rejects.toBe(verifierError);
+      expect(verifierAttempts).toBe(1);
+      expect(graphCloses).toBe(1);
+      expect(releases).toBe(1);
+      expect(reopens).toBe(0);
+      const { db: reader } = createDatabase(getDatabasePath(tempDir), { readOnly: true });
+      try {
+        expect(reader.prepare(
+          'SELECT value FROM project_metadata WHERE key = ?',
+        ).get('java_finalization_state')).toEqual({ value: 'failed' });
+        expect(reader.prepare(
+          'SELECT file_path, status, attempts FROM embedding_queue ORDER BY file_path',
+        ).all()).toEqual([{ file_path: 'Owner.java', status: 'pending', attempts: 0 }]);
+      } finally {
+        reader.close();
+      }
+      expect(() => CodeGraph.openSync(tempDir)).toThrow(/Java.*failed.*rebuild/i);
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: preserves verifier close when graph close and release also fail', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          openFinalizationGraph(
+            projectRoot: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): Promise<CodeGraph>;
+          openFinalizationVerifier(
+            dbPath: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): DatabaseConnection;
+          reopenDatabase(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const verifierCloseError = new Error('verifier close primary sentinel');
+    const graphCloseError = new Error('verifier close graph cleanup sentinel');
+    const releaseError = new Error('verifier close release cleanup sentinel');
+    let verifierCloses = 0;
+    let graphCloses = 0;
+    let releases = 0;
+    let reopens = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.reject(releaseError);
+            },
+          });
+        },
+        async openFinalizationGraph(projectRoot, token) {
+          const graph = await CodeGraph.openForJavaFinalization(projectRoot, token);
+          const close = graph.close.bind(graph);
+          graph.close = () => {
+            graphCloses++;
+            close();
+            throw graphCloseError;
+          };
+          return graph;
+        },
+        openFinalizationVerifier(dbPath, token) {
+          const verifier = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+          const close = verifier.close.bind(verifier);
+          verifier.close = () => {
+            verifierCloses++;
+            close();
+            throw verifierCloseError;
+          };
+          return verifier;
+        },
+        reopenDatabase() {
+          reopens++;
+        },
+      })).rejects.toBe(verifierCloseError);
+      expect(verifierCloses).toBe(1);
+      expect(graphCloses).toBe(1);
+      expect(releases).toBe(1);
+      expect(reopens).toBe(0);
+      const { db: reader } = createDatabase(getDatabasePath(tempDir), { readOnly: true });
+      try {
+        expect(reader.prepare(
+          'SELECT value FROM project_metadata WHERE key = ?',
+        ).get('java_finalization_state')).toEqual({ value: 'failed' });
+        expect(reader.prepare(
+          'SELECT file_path, status, attempts FROM embedding_queue ORDER BY file_path',
+        ).all()).toEqual([{ file_path: 'Owner.java', status: 'pending', attempts: 0 }]);
+      } finally {
+        reader.close();
+      }
+    } finally {
+      cg.close();
+    }
+  });
+
+  it('1-9-15-2: preserves a real complete COMMIT failure through failed marking and cleanup', async () => {
+    fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
+    const cg = CodeGraph.initSync(tempDir);
+    const evaluate = (cg as unknown as {
+      indexExternalEngineForEvaluation(
+        engine: 'rust',
+        options: IndexOptions,
+        dependencies: {
+          acquireReplacementGate(): Promise<{ release(): Promise<void> }>;
+          openFinalizationGraph(
+            projectRoot: string,
+            token: ReturnType<typeof issueJavaFinalizationToken>,
+          ): Promise<CodeGraph>;
+          reopenDatabase(): void;
+        },
+      ): Promise<IndexResult>;
+    }).indexExternalEngineForEvaluation;
+    const completeCommitError = new Error('complete COMMIT primary sentinel');
+    const graphCloseError = new Error('complete failure graph close cleanup sentinel');
+    const releaseError = new Error('complete failure release cleanup sentinel');
+    const markerEvents: string[] = [];
+    let completeCommitAttempts = 0;
+    let graphCloses = 0;
+    let releases = 0;
+    let reopens = 0;
+    try {
+      await expect(evaluate.call(cg, 'rust', {}, {
+        acquireReplacementGate() {
+          return Promise.resolve({
+            release() {
+              releases++;
+              return Promise.reject(releaseError);
+            },
+          });
+        },
+        async openFinalizationGraph(projectRoot, token) {
+          const graph = await CodeGraph.openForJavaFinalization(projectRoot, token);
+          const writer = (graph as unknown as { db: DatabaseConnection }).db;
+          const commitComplete = writer.commitJavaFinalizationComplete.bind(writer);
+          writer.commitJavaFinalizationComplete = () => {
+            const raw = writer.getDb();
+            const exec = raw.exec;
+            raw.exec = (sql) => {
+              markerEvents.push(sql);
+              if (sql === 'COMMIT') {
+                completeCommitAttempts++;
+                throw completeCommitError;
+              }
+              exec.call(raw, sql);
+            };
+            try {
+              return commitComplete();
+            } finally {
+              raw.exec = exec;
+            }
+          };
+          const close = graph.close.bind(graph);
+          graph.close = () => {
+            graphCloses++;
+            close();
+            throw graphCloseError;
+          };
+          return graph;
+        },
+        reopenDatabase() {
+          reopens++;
+        },
+      })).rejects.toBe(completeCommitError);
+      expect(completeCommitAttempts).toBe(1);
+      expect(markerEvents).toEqual(['BEGIN', 'COMMIT', 'ROLLBACK']);
+      expect(graphCloses).toBe(1);
+      expect(releases).toBe(1);
+      expect(reopens).toBe(0);
+      const { db: reader } = createDatabase(getDatabasePath(tempDir), { readOnly: true });
+      try {
+        expect(reader.prepare(
+          'SELECT value FROM project_metadata WHERE key = ?',
+        ).get('java_finalization_state')).toEqual({ value: 'failed' });
+        expect(reader.prepare(
+          'SELECT file_path, status, attempts FROM embedding_queue ORDER BY file_path',
+        ).all()).toEqual([{ file_path: 'Owner.java', status: 'pending', attempts: 0 }]);
+      } finally {
+        reader.close();
+      }
+    } finally {
+      cg.close();
+    }
+  });
+
   it('1-9-15-2: preserves failed COMMIT when its writer close also fails', async () => {
     fs.writeFileSync(path.join(tempDir, 'Owner.java'), 'class Owner { void find() {} }\n');
     const cg = CodeGraph.initSync(tempDir);
@@ -1304,7 +1548,7 @@ describe('Database Connection', () => {
     }
   });
 
-  it('1-9-15-2: closes a completed finalization graph once when its close fails', async () => {
+  it('1-9-15-2: closes a completed finalization graph once when its close and release fail', async () => {
     const cg = CodeGraph.initSync(tempDir);
     const evaluate = (cg as unknown as {
       indexExternalEngineForEvaluation(
@@ -1322,6 +1566,7 @@ describe('Database Connection', () => {
       ): Promise<IndexResult>;
     }).indexExternalEngineForEvaluation;
     const closeError = new Error('complete finalization graph close sentinel');
+    const releaseError = new Error('complete finalization gate release cleanup sentinel');
     let closes = 0;
     let releases = 0;
     let reopens = 0;
@@ -1332,7 +1577,7 @@ describe('Database Connection', () => {
           return Promise.resolve({
             release() {
               releases++;
-              return Promise.resolve();
+              return Promise.reject(releaseError);
             },
           });
         },
