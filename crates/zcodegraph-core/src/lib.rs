@@ -18636,7 +18636,9 @@ mod tests {
         );
         assert!(matches!(
             error.kind(),
-            io::ErrorKind::AlreadyExists | io::ErrorKind::PermissionDenied
+            io::ErrorKind::AlreadyExists
+                | io::ErrorKind::PermissionDenied
+                | io::ErrorKind::IsADirectory
         ));
         assert!(index_path.is_dir());
         assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");

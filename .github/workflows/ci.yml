@@ -87,6 +87,9 @@ jobs:
           tests/concurrent-locking.test.ts
           tests/rust-index-engine-cli-failure-safety.test.ts
           tests/index-write-lease.test.ts
+      - name: Build native fault-injection test fixtures
+        shell: bash
+        run: cargo build --package zcodegraph-core --bins --features test-fault-injection
       - name: Verify real native process supervision, crash recovery, and replacement coordination
         run: >
           npx vitest run
