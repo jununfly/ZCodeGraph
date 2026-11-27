@@ -73,6 +73,7 @@ jobs:
           CARGO_TARGET_DIR=/tmp/zcg-java-overload-paired/cargo-target/before cargo build --package zcodegraph-core
           mkdir -p target/debug
           cp /tmp/zcg-java-overload-paired/cargo-target/before/debug/zcodegraph-core target/debug/zcodegraph-core
+          cp .zcg-diagnostic-revision target/debug/.zcg-native-revision
 
       - name: Build candidate TypeScript and native core
         working-directory: /tmp/zcg-java-overload-paired/builds/after
@@ -82,11 +83,13 @@ jobs:
           CARGO_TARGET_DIR=/tmp/zcg-java-overload-paired/cargo-target/after cargo build --package zcodegraph-core
           mkdir -p target/debug
           cp /tmp/zcg-java-overload-paired/cargo-target/after/debug/zcodegraph-core target/debug/zcodegraph-core
+          cp .zcg-diagnostic-revision target/debug/.zcg-native-revision
 
       - name: Prepare candidate TypeScript with baseline native
         run: |
           cp -a "$DIAGNOSTIC_ROOT/builds/after" "$DIAGNOSTIC_ROOT/builds/cross-after-before-native"
           cp "$DIAGNOSTIC_ROOT/builds/before/target/debug/zcodegraph-core" "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/zcodegraph-core"
+          cp "$DIAGNOSTIC_ROOT/builds/before/.zcg-diagnostic-revision" "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/.zcg-native-revision"
           test "$(sha256sum "$DIAGNOSTIC_ROOT/builds/before/target/debug/zcodegraph-core" | cut -d' ' -f1)" = "$(sha256sum "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/zcodegraph-core" | cut -d' ' -f1)"
           test "$(sha256sum "$DIAGNOSTIC_ROOT/builds/after/target/debug/zcodegraph-core" | cut -d' ' -f1)" != "$(sha256sum "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/zcodegraph-core" | cut -d' ' -f1)"
 
@@ -106,6 +109,7 @@ jobs:
           ZCG_RUST_CORE_BINARY: ""
         run: |
           unset ZCG_ENABLE_JAVA_OVERLOAD ZCG_RUST_CORE_BINARY
+          node --test scripts/measure/java-overload-paired-diagnostics.test.mjs
           node scripts/measure/java-overload-paired-diagnostics.mjs \
             --builds "$DIAGNOSTIC_ROOT/builds" \
             --corpus "$DIAGNOSTIC_ROOT/corpus" \

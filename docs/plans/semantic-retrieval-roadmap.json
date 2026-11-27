@@ -2610,6 +2610,11 @@
           "q": "新 workflow_dispatch 尚未在默认分支时如何运行而不写 main？",
           "answer": "仅在临时分支 ubuntu-overload-perf-20261127 的 push 触发该独立诊断 workflow 一次，并保留 workflow_dispatch 供未来显式使用；不开 PR、不推 main、不改正式 CI。三 arm 每 block 采用轮换顺序，九块后每个 arm 在每个位置出现三次，保持九轮交替/顺序平衡。",
           "note": ""
+        },
+        {
+          "q": "Ubuntu 交叉组来源校验失败如何最小修复？",
+          "answer": "保持三臂九轮、默认关闭 overload、native discovery/SHA 和完整图校验不变。候选 TypeScript 与基线 native 分别使用 CLI root 和 native root 的来源标记；新增导出来源校验 seam 的定向红绿回归，不删除或放宽来源断言。修复仅提交推送临时诊断分支，不修改产品实现、正式 CI 或 main。",
+          "note": ""
         }
       ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
@@ -2653,7 +2658,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-27 20:31:23",
+    "updated": "2026-11-27 20:44:55",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

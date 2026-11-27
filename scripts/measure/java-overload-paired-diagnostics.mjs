@@ -78,6 +78,16 @@ function summarize(values) {
   };
 }
 
+export function verifyArmProvenance(name, arm) {
+  for (const [kind, revision, marker] of [
+    ['cli', arm.cliRevision, path.join(arm.root, '.zcg-diagnostic-revision')],
+    ['native', arm.nativeRevision, path.join(path.dirname(arm.native), '.zcg-native-revision')],
+  ]) {
+    const actual = fs.readFileSync(marker, 'utf8').trim();
+    if (actual !== revision) throw new Error(`${name} ${kind} source mismatch: ${actual}`);
+  }
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const env = {
@@ -155,10 +165,7 @@ function main() {
   }
 
   for (const [name, arm] of Object.entries(arms)) {
-    for (const [kind, revision] of [['cli', arm.cliRevision], ['native', arm.nativeRevision]]) {
-      const actual = fs.readFileSync(path.join(arm.root, '.zcg-diagnostic-revision'), 'utf8').trim();
-      if (actual !== revision) throw new Error(`${name} ${kind} source mismatch: ${actual}`);
-    }
+    verifyArmProvenance(name, arm);
     const moduleUrl = new URL(`file://${path.join(arm.root, 'dist', 'indexing', 'rust-indexer.js')}`).href;
     const script = `import {findRustCoreCommand,findLeaseHelperCommand} from ${JSON.stringify(moduleUrl)};console.log(JSON.stringify({index:findRustCoreCommand(),lease:findLeaseHelperCommand()}));`;
     const found = JSON.parse(run(process.execPath, ['--input-type=module', '-e', script], arm.root));
