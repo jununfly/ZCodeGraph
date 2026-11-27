@@ -2615,6 +2615,11 @@
           "q": "Ubuntu 交叉组来源校验失败如何最小修复？",
           "answer": "保持三臂九轮、默认关闭 overload、native discovery/SHA 和完整图校验不变。候选 TypeScript 与基线 native 分别使用 CLI root 和 native root 的来源标记；新增导出来源校验 seam 的定向红绿回归，不删除或放宽来源断言。修复仅提交推送临时诊断分支，不修改产品实现、正式 CI 或 main。",
           "note": ""
+        },
+        {
+          "q": "交叉组 native 来源标记正确后为何仍发现候选 binary？",
+          "answer": "第二轮诊断在采样前被 discovery 断言拒绝：交叉 arm 只替换了 native 路径，但仍从原 after root 启动 CLI，因而按其模块位置发现原候选 native。最小修复为从 workflow 已创建的 cross-after-before-native 独立副本启动候选 CLI，并读取该副本的候选 CLI 标记及基线 native 标记；保留来源、实际 discovery 和 SHA 断言。新增 arm 根目录红绿回归，不改测量协议、产品实现或正式 CI。",
+          "note": ""
         }
       ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
@@ -2658,7 +2663,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-27 20:44:55",
+    "updated": "2026-11-27 21:32:14",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

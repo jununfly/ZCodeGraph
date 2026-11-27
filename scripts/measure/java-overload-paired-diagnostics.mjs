@@ -78,6 +78,32 @@ function summarize(values) {
   };
 }
 
+export function createArms(args) {
+  const arms = {};
+  for (const source of ['before', 'after']) {
+    const root = path.join(args.builds, source);
+    arms[source] = {
+      revision: EXPECTED[source],
+      cliRevision: EXPECTED[source],
+      nativeRevision: EXPECTED[source],
+      root,
+      cli: path.join(root, 'dist', 'bin', 'zcodegraph.js'),
+      native: path.join(root, 'target', 'debug', 'zcodegraph-core'),
+      repo: path.join(args.corpus, source),
+    };
+  }
+  const crossRoot = path.join(args.builds, 'cross-after-before-native');
+  arms.afterTsBeforeCore = {
+    ...arms.after,
+    root: crossRoot,
+    cli: path.join(crossRoot, 'dist', 'bin', 'zcodegraph.js'),
+    nativeRevision: EXPECTED.before,
+    native: path.join(crossRoot, 'target', 'debug', 'zcodegraph-core'),
+    repo: path.join(args.corpus, 'after-ts-before-native'),
+  };
+  return arms;
+}
+
 export function verifyArmProvenance(name, arm) {
   for (const [kind, revision, marker] of [
     ['cli', arm.cliRevision, path.join(arm.root, '.zcg-diagnostic-revision')],
@@ -100,25 +126,7 @@ function main() {
   delete env.ZCG_ENABLE_JAVA_OVERLOAD;
   delete env.ZCG_RUST_CORE_BINARY;
 
-  const arms = {};
-  for (const source of ['before', 'after']) {
-    const root = path.join(args.builds, source);
-    arms[source] = {
-      revision: EXPECTED[source],
-      cliRevision: EXPECTED[source],
-      nativeRevision: EXPECTED[source],
-      root,
-      cli: path.join(root, 'dist', 'bin', 'zcodegraph.js'),
-      native: path.join(root, 'target', 'debug', 'zcodegraph-core'),
-      repo: path.join(args.corpus, source),
-    };
-  }
-  arms.afterTsBeforeCore = {
-    ...arms.after,
-    nativeRevision: EXPECTED.before,
-    native: path.join(args.builds, 'cross-after-before-native', 'target', 'debug', 'zcodegraph-core'),
-    repo: path.join(args.corpus, 'after-ts-before-native'),
-  };
+  const arms = createArms(args);
 
   const report = {
     schemaVersion: 1,
