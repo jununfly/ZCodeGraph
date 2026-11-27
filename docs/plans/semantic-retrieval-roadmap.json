@@ -2595,6 +2595,21 @@
           "q": "1-9-15-4 直接交付后的 PR 收尾如何选择？",
           "answer": "Human 选 A：接受 e864080 与 merge 32ff335 已直接进入 origin/main 的交付结果，不创建空 PR，不执行 mainline revert/reapply。当前无本地或远端 p0b-java 功能分支可删除，main 保留。主工作区已有未提交 roadmap、草稿及 tmp/ 不覆盖、不清理。此决定仅结束交付流程，不验收节点，不进入 1-9-15-5/6。",
           "note": ""
+        },
+        {
+          "q": "持续 Architecture 红线失败后的最小性能归因如何取证？",
+          "answer": "Human 选 A：对 Java 改动前 53474b7 与当前 827bfa1 各执行同一套固定 spring-petclinic 9 次冷 index。保持既有构建和 perf 脚本、语料 pin 与阈值不变；不改产品代码、测试、基线或 continue-on-error。现有 CI 无同 job A/B 入口，因此新增证据只限同一 Windows 主机的两个临时 detached 检出，共享隔离语料并顺序运行；明确不能冒充 Ubuntu 同 runner 结论。记录原始 indexRuns/median 和环境，比较本机前后差异，再决定是否还需 CI 对照；不自动 commit/push、不验收节点、不进入 1-9-15-5/6。",
+          "note": ""
+        },
+        {
+          "q": "Windows 对照后如何区分 Java 提取成本与 Ubuntu runner 漂移？",
+          "answer": "Human 选 A：新增仅 workflow_dispatch 的临时诊断分支，在同一 Ubuntu runner 中固定 53474b7、827bfa1 和 Petclinic 500158f，Rust debug、默认关闭 overload，九轮 AB/BA 冷 index 与 Explore，并增加候选 TS+基线 native 组。所有样本校验 native SHA、77/1138/1963 图计数、退出状态和 OS 锁释放。仅诊断，不改正式 CI/阈值/基线/产品实现，不验收节点或进入 1-9-15-5/6；授权本诊断文件 commit+push，不自动推 main。",
+          "note": ""
+        },
+        {
+          "q": "新 workflow_dispatch 尚未在默认分支时如何运行而不写 main？",
+          "answer": "仅在临时分支 ubuntu-overload-perf-20261127 的 push 触发该独立诊断 workflow 一次，并保留 workflow_dispatch 供未来显式使用；不开 PR、不推 main、不改正式 CI。三 arm 每 block 采用轮换顺序，九块后每个 arm 在每个位置出现三次，保持九轮交替/顺序平衡。",
+          "note": ""
         }
       ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
@@ -2638,7 +2653,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-27 19:22:18",
+    "updated": "2026-11-27 20:31:23",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

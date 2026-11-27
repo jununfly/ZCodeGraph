@@ -1,0 +1,133 @@
+name: Java overload paired performance diagnostic
+
+on:
+  # The diagnostic branch exists only to obtain same-runner A/B evidence.
+  # Formal CI remains unchanged and this workflow never runs on main.
+  push:
+    branches: [ubuntu-overload-perf-20261127]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: java-overload-perf-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  paired:
+    name: Same-runner before/after/native-cross (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ZCG_ALLOW_UNSAFE_NODE: "1"
+      ZCG_NO_DAEMON: "1"
+      ZCG_NO_RELAUNCH: "1"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      DIAGNOSTIC_ROOT: /tmp/zcg-java-overload-paired
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify diagnostic revisions exist
+        run: |
+          git cat-file -e 53474b753c60ad459151fef45fd257fba6f809b2^{commit}
+          git cat-file -e 827bfa18d57e269c431aa44835dd399a95afef34^{commit}
+
+      - name: Redirect SSH submodule URLs to public HTTPS for cargo git deps
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Restore Rust dependency build cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/zcg-java-overload-paired/cargo-target
+          key: java-overload-paired-debug-v1-${{ hashFiles('Cargo.lock') }}
+          restore-keys: java-overload-paired-debug-v1-
+
+      - name: Prepare isolated source archives
+        run: |
+          mkdir -p "$DIAGNOSTIC_ROOT/builds" "$DIAGNOSTIC_ROOT/corpus" "$DIAGNOSTIC_ROOT/results"
+          for revision in before after; do
+            mkdir -p "$DIAGNOSTIC_ROOT/builds/$revision"
+            if [ "$revision" = before ]; then
+              sha=53474b753c60ad459151fef45fd257fba6f809b2
+            else
+              sha=827bfa18d57e269c431aa44835dd399a95afef34
+            fi
+            git archive "$sha" | tar -x -C "$DIAGNOSTIC_ROOT/builds/$revision"
+            printf '%s\n' "$sha" > "$DIAGNOSTIC_ROOT/builds/$revision/.zcg-diagnostic-revision"
+          done
+          test ! -e "$DIAGNOSTIC_ROOT/builds/before/target"
+          test ! -e "$DIAGNOSTIC_ROOT/builds/after/target"
+
+      - name: Build baseline TypeScript and native core
+        working-directory: /tmp/zcg-java-overload-paired/builds/before
+        run: |
+          npm ci
+          npm run build
+          CARGO_TARGET_DIR=/tmp/zcg-java-overload-paired/cargo-target/before cargo build --package zcodegraph-core
+          mkdir -p target/debug
+          cp /tmp/zcg-java-overload-paired/cargo-target/before/debug/zcodegraph-core target/debug/zcodegraph-core
+
+      - name: Build candidate TypeScript and native core
+        working-directory: /tmp/zcg-java-overload-paired/builds/after
+        run: |
+          npm ci
+          npm run build
+          CARGO_TARGET_DIR=/tmp/zcg-java-overload-paired/cargo-target/after cargo build --package zcodegraph-core
+          mkdir -p target/debug
+          cp /tmp/zcg-java-overload-paired/cargo-target/after/debug/zcodegraph-core target/debug/zcodegraph-core
+
+      - name: Prepare candidate TypeScript with baseline native
+        run: |
+          cp -a "$DIAGNOSTIC_ROOT/builds/after" "$DIAGNOSTIC_ROOT/builds/cross-after-before-native"
+          cp "$DIAGNOSTIC_ROOT/builds/before/target/debug/zcodegraph-core" "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/zcodegraph-core"
+          test "$(sha256sum "$DIAGNOSTIC_ROOT/builds/before/target/debug/zcodegraph-core" | cut -d' ' -f1)" = "$(sha256sum "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/zcodegraph-core" | cut -d' ' -f1)"
+          test "$(sha256sum "$DIAGNOSTIC_ROOT/builds/after/target/debug/zcodegraph-core" | cut -d' ' -f1)" != "$(sha256sum "$DIAGNOSTIC_ROOT/builds/cross-after-before-native/target/debug/zcodegraph-core" | cut -d' ' -f1)"
+
+      - name: Export three clean pinned Petclinic corpora
+        run: |
+          git clone --no-checkout https://github.com/spring-projects/spring-petclinic.git "$DIAGNOSTIC_ROOT/petclinic-source"
+          git -C "$DIAGNOSTIC_ROOT/petclinic-source" checkout --detach 500158f732419217507c7656904b8e6aa1bcc0d6
+          for corpus in before after after-ts-before-native; do
+            mkdir -p "$DIAGNOSTIC_ROOT/corpus/$corpus"
+            git -C "$DIAGNOSTIC_ROOT/petclinic-source" archive 500158f732419217507c7656904b8e6aa1bcc0d6 | tar -x -C "$DIAGNOSTIC_ROOT/corpus/$corpus"
+            test ! -e "$DIAGNOSTIC_ROOT/corpus/$corpus/.zcodegraph"
+          done
+
+      - name: Measure nine paired blocks with default Java overload disabled
+        env:
+          ZCG_ENABLE_JAVA_OVERLOAD: ""
+          ZCG_RUST_CORE_BINARY: ""
+        run: |
+          unset ZCG_ENABLE_JAVA_OVERLOAD ZCG_RUST_CORE_BINARY
+          node scripts/measure/java-overload-paired-diagnostics.mjs \
+            --builds "$DIAGNOSTIC_ROOT/builds" \
+            --corpus "$DIAGNOSTIC_ROOT/corpus" \
+            --out "$DIAGNOSTIC_ROOT/results/paired-results.json"
+
+      - name: Record host and build identities
+        if: always()
+        run: |
+          {
+            node --version
+            cargo --version
+            rustc --version
+            uname -a
+            sha256sum "$DIAGNOSTIC_ROOT"/builds/*/target/debug/zcodegraph-core
+          } > "$DIAGNOSTIC_ROOT/results/environment.txt"
+
+      - name: Upload raw paired evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-overload-paired-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/zcg-java-overload-paired/results/
+          if-no-files-found: error
+          retention-days: 14
