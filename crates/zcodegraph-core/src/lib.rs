@@ -1469,7 +1469,7 @@ impl SqliteIndexWritePaths {
     }
 
     fn cleanup_temp_sidecars(&self) {
-        cleanup_sqlite_sidecars(&self.temp_path);
+        let _ = cleanup_sqlite_sidecars(&self.temp_path);
     }
 
     fn discard_temp_path(&self) {
@@ -17920,32 +17920,55 @@ where
     BeforeCleanup: FnOnce() -> io::Result<()>,
 {
     let backup_path = backup_index_path(index_path);
+    cleanup_sqlite_sidecars(&backup_path)?;
     if backup_path.exists() {
         fs::remove_file(&backup_path)?;
     }
 
     if index_path.exists() {
+        // SQLite derives the WAL path from the connection's original database
+        // filename. An old external handle may therefore keep writing to
+        // `index_path-wal` even after its main file has been renamed. Keep all
+        // existing old-generation sidecars with the backup so a promoted main
+        // file never opens against the previous generation's WAL/SHM.
+        for suffix in ["-wal", "-shm"] {
+            let active_sidecar = sqlite_sidecar_path(index_path, suffix);
+            if active_sidecar.exists() {
+                fs::rename(&active_sidecar, sqlite_sidecar_path(&backup_path, suffix))?;
+            }
+        }
         fs::rename(index_path, &backup_path)?;
     }
 
     match fs::rename(temp_path, index_path) {
         Ok(()) => {
             before_cleanup()?;
-            if backup_path.exists() {
-                fs::remove_file(&backup_path).map_err(|cleanup_error| {
-                    io::Error::new(
-                        cleanup_error.kind(),
-                        format!(
-                            "new active index is already promoted; backup cleanup failed: {cleanup_error}"
-                        ),
-                    )
-                })?;
-            }
+            let cleanup_result = (|| -> io::Result<()> {
+                cleanup_sqlite_sidecars(&backup_path)?;
+                if backup_path.exists() {
+                    fs::remove_file(&backup_path)?;
+                }
+                Ok(())
+            })();
+            cleanup_result.map_err(|cleanup_error| {
+                io::Error::new(
+                    cleanup_error.kind(),
+                    format!(
+                        "new active index is already promoted; backup cleanup failed: {cleanup_error}"
+                    ),
+                )
+            })?;
             Ok(())
         }
         Err(err) => {
             if backup_path.exists() {
                 before_restore()?;
+                for suffix in ["-wal", "-shm"] {
+                    let backup_sidecar = sqlite_sidecar_path(&backup_path, suffix);
+                    if backup_sidecar.exists() {
+                        fs::rename(&backup_sidecar, sqlite_sidecar_path(index_path, suffix))?;
+                    }
+                }
                 if let Err(restore_error) = fs::rename(&backup_path, index_path) {
                     return Err(io::Error::new(
                         restore_error.kind(),
@@ -17976,11 +17999,20 @@ fn backup_index_path(index_path: &Path) -> PathBuf {
     index_path.with_file_name(format!("{}.rust-backup-{}", file_name, std::process::id()))
 }
 
-fn cleanup_sqlite_sidecars(path: &Path) {
+fn sqlite_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+    PathBuf::from(format!("{}{}", path.display(), suffix))
+}
+
+fn cleanup_sqlite_sidecars(path: &Path) -> io::Result<()> {
     for suffix in ["-wal", "-shm"] {
-        let sidecar = PathBuf::from(format!("{}{}", path.display(), suffix));
-        let _ = fs::remove_file(sidecar);
+        let sidecar = sqlite_sidecar_path(path, suffix);
+        match fs::remove_file(sidecar) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
     }
+    Ok(())
 }
 
 fn now_ms() -> i64 {
@@ -18604,6 +18636,46 @@ mod tests {
             "old-active-snapshot"
         );
         drop(active_reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_keeps_old_sqlite_sidecars_with_the_backup_generation() {
+        let dir = temp_dir("replacement-sidecar-generation-isolation");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        fs::write(&temp_path, b"new-staged-index").unwrap();
+        for (suffix, contents) in [("-wal", b"old-wal"), ("-shm", b"old-shm")] {
+            fs::write(sqlite_sidecar_path(&index_path, suffix), contents).unwrap();
+            fs::write(sqlite_sidecar_path(&backup_path, suffix), b"stale-backup").unwrap();
+        }
+
+        replace_active_index_with_hooks(
+            &temp_path,
+            &index_path,
+            || Ok(()),
+            || {
+                // At this deterministic point the new main file is active but
+                // the old generation is still retained for recovery.
+                assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+                assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");
+                for suffix in ["-wal", "-shm"] {
+                    assert!(!sqlite_sidecar_path(&index_path, suffix).exists());
+                    assert!(sqlite_sidecar_path(&backup_path, suffix).exists());
+                }
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+        assert!(!backup_path.exists());
+        for suffix in ["-wal", "-shm"] {
+            assert!(!sqlite_sidecar_path(&index_path, suffix).exists());
+            assert!(!sqlite_sidecar_path(&backup_path, suffix).exists());
+        }
         cleanup_temp_dir(dir);
     }
 

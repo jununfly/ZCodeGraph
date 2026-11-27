@@ -58,7 +58,11 @@ function assertPrivateJavaFinalization(
   ) {
     throw new Error(
       'Java finalization requires exact p0b-java-v1 generation, required state, ' +
-      'and a run/pass token matching the promoted graph.'
+      'and a run/pass token matching the promoted graph ' +
+      `(observed generation=${values.get(JAVA_FACT_GENERATION_KEY) ?? '<missing>'}, ` +
+      `state=${values.get(JAVA_FINALIZATION_KEY) ?? '<missing>'}, ` +
+      `runMatch=${values.get(JAVA_FINALIZATION_RUN_KEY) === token.runId}, ` +
+      `passMatch=${values.get(JAVA_FINALIZATION_PASS_KEY) === token.passId}).`
     );
   }
 }
