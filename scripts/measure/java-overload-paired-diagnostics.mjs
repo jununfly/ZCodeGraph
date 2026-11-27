@@ -57,9 +57,11 @@ function sha256(data) {
   return createHash('sha256').update(data).digest('hex');
 }
 
-function median(values) {
-  if (values.length === 0 || values.length % 2 === 0) throw new Error('expected odd non-empty sample');
-  return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+export function median(values) {
+  if (values.length === 0) throw new Error('expected non-empty sample');
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 function roundMs(value) {
@@ -70,7 +72,18 @@ function roundPercent(value) {
   return Math.round(value * 1000) / 10;
 }
 
-function summarize(values) {
+export function summarize(values) {
+  if (typeof values[0] === 'object' && values[0] !== null) {
+    const perQuery = Object.fromEntries([...new Set(values.map((row) => row.queryIndex))].map((queryIndex) => [
+      queryIndex,
+      summarize(values.filter((row) => row.queryIndex === queryIndex).map((row) => row.wallMs)),
+    ]));
+    return {
+      medianMs: median(Object.values(perQuery).map((summary) => summary.medianMs)),
+      rangeMs: [Math.min(...values.map((row) => row.wallMs)), Math.max(...values.map((row) => row.wallMs))],
+      perQuery,
+    };
+  }
   return {
     medianMs: median(values),
     rangeMs: [Math.min(...values), Math.max(...values)],
@@ -268,7 +281,7 @@ function main() {
     const exploreRows = report.explore.filter((row) => row.arm === name);
     report.summary[name] = {
       index: summarize(indexRows.map((row) => row.wallMs)),
-      explore: summarize(exploreRows.map((row) => row.wallMs)),
+      explore: summarize(exploreRows),
       javaParse: summarize(indexRows.map((row) => row.javaParseMs)),
       javaAst: summarize(indexRows.map((row) => row.javaAstMs)),
       sqliteWrite: summarize(indexRows.map((row) => row.sqliteWriteMs)),

@@ -2620,6 +2620,11 @@
           "q": "交叉组 native 来源标记正确后为何仍发现候选 binary？",
           "answer": "第二轮诊断在采样前被 discovery 断言拒绝：交叉 arm 只替换了 native 路径，但仍从原 after root 启动 CLI，因而按其模块位置发现原候选 native。最小修复为从 workflow 已创建的 cross-after-before-native 独立副本启动候选 CLI，并读取该副本的候选 CLI 标记及基线 native 标记；保留来源、实际 discovery 和 SHA 断言。新增 arm 根目录红绿回归，不改测量协议、产品实现或正式 CI。",
           "note": ""
+        },
+        {
+          "q": "Ubuntu 同 runner 三臂九轮原始样本给出何种性能归因？",
+          "answer": "Run 46007995076 已产生完整原始证据：27 次正式 index、54 次 Explore、3 次预热；每个正式样本均成功、77/1138/1963、零 skipped/errors、OS lease not-locked，index/lease native 路径与 SHA 正确，交叉组确为 candidate TS+baseline native，两个 Explore query 的跨 arm 输出哈希一致。原始 JSON SHA=2a5575ec6f07c1bd88bf423e536c43ee9d427b548184e04efc221b133a380739。按 Architecture 的每 query 中位数再跨 query 中位数重算：before index 3222.6ms、after 3491.6ms（+8.3%）、candidate TS+baseline native 3240.0ms（+0.5%）；Java AST 318→549ms（+231ms），Java parse 374→601ms（+227ms）；Explore 244.3→244.8ms（+0.2%）。支持本固定小语料、默认 overload 关闭时主要可测增量来自 native Java extraction/metadata，不能外推为所有平台、所有项目或精确 resolver 零成本，也不替代正式 CI verdict、不改阈值/基线。",
+          "note": "原始 workflow 在所有样本落盘后因其 Explore 汇总拒绝 18 个偶数样本而标 failure。为不重跑或丢弃有效索引，独立保留原始 JSON 并用已测汇总函数重算；诊断器改为与正式 perf-baseline 相同的逐查询再跨查询聚合，提交后仅作相同协议确认运行。1-9-15-4 仍 pending，不进入 1-9-15-5/6，不自动实施优化。"
         }
       ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
@@ -2663,7 +2668,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-27 21:32:14",
+    "updated": "2026-11-27 21:42:04",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

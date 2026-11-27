@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { createArms, verifyArmProvenance } from './java-overload-paired-diagnostics.mjs';
+import { median, summarize, createArms, verifyArmProvenance } from './java-overload-paired-diagnostics.mjs';
 
 const BEFORE = '53474b753c60ad459151fef45fd257fba6f809b2';
 const AFTER = '827bfa18d57e269c431aa44835dd399a95afef34';
@@ -16,6 +16,24 @@ function revisionMarker(root, name, revision) {
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(path.join(directory, name), `${revision}\n`);
 }
+
+test('summarizes two nine-run Explore queries with the architecture metric aggregation', () => {
+  const query0 = [200, 210, 220, 230, 240, 250, 260, 270, 280];
+  const query1 = [100, 110, 120, 130, 140, 150, 160, 170, 180];
+  const rows = Array.from({ length: 9 }, (_, block) => [
+    { queryIndex: 0, wallMs: query0[block] },
+    { queryIndex: 1, wallMs: query1[block] },
+  ]).flat();
+
+  assert.deepEqual(summarize(rows), {
+    medianMs: 190,
+    rangeMs: [100, 280],
+    perQuery: {
+      0: { medianMs: 240, rangeMs: [200, 280], runsMs: query0 },
+      1: { medianMs: 140, rangeMs: [100, 180], runsMs: query1 },
+    },
+  });
+});
 
 test('runs candidate TypeScript from the copy containing the baseline native', () => {
   const arms = createArms({ builds: '/builds', corpus: '/corpus' });
