@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::{self, Command, Stdio};
 
 use zcodegraph_core::process_supervision::{spawn_supervised, wait_for_supervision};
+use zcodegraph_core::{write_scripted_index_lifecycle, IndexRequest};
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -108,6 +109,17 @@ fn supervise_writer(script: &Path, args: &[String]) {
         process::exit(2);
     });
     match wait_for_supervision(&mut child) {
+        Ok(status) if status.success() => {
+            let request = IndexRequest::from_index_args(args.to_vec(), true).unwrap_or_else(|error| {
+                eprintln!("scripted-index-fixture invalid index request: {error}");
+                process::exit(2);
+            });
+            write_scripted_index_lifecycle(Path::new(&request.index_path), &request)
+                .unwrap_or_else(|error| {
+                    eprintln!("scripted-index-fixture lifecycle write failed: {error}");
+                    process::exit(1);
+                });
+        }
         Ok(status) => process::exit(status.code().unwrap_or(1)),
         Err(_) => process::exit(4),
     }

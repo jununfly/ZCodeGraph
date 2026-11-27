@@ -15,6 +15,8 @@
  *    must call into this module; do NOT re-implement the rules elsewhere.
  */
 
+import { javaSemanticSignature } from '../java-declaration.js';
+
 export type DeadCodeBucket = 'dead' | 'alive' | 'unknown';
 export type DeadCodeRuleId = 'R1' | 'R2' | 'R3' | 'R4';
 
@@ -267,6 +269,7 @@ const SPRING_DATA_REPOSITORY_MARKERS = new Set([
  * case-insensitive on the already generics-stripped leaf names.
  */
 function springDataSuperinterface(signature: string | null | undefined): string | null {
+  signature = javaSemanticSignature(signature);
   if (!signature || !signature.startsWith('extends ')) return null;
   const list = signature.slice('extends '.length);
   for (const raw of list.split(',')) {

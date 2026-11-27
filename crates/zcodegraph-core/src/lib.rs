@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -26,13 +26,15 @@ mod ruby;
 mod scala;
 mod swift;
 use index_options::GraphWorkFeatures;
-pub use index_options::{GraphWorkProfile, IndexRequest, SqliteWriteMode};
-pub use profiling::{start_heap_profiler, HeapProfilerGuard};
-pub use replacement_gate::{acquire_replacement_gate, acquire_worker_lease, OsFileLease};
+pub use index_options::{
+    GraphWorkProfile, IndexRequest, JavaFinalizationIdentity, SqliteWriteMode,
+};
 pub use index_write_lock::{
     IndexWriteLease, LeaseDiagnostics, LeaseOwner, RendezvousState, DIAGNOSTIC_FILE,
     RENDEZVOUS_FILE,
 };
+pub use profiling::{start_heap_profiler, HeapProfilerGuard};
+pub use replacement_gate::{acquire_replacement_gate, acquire_worker_lease, OsFileLease};
 
 #[cfg(feature = "dhat")]
 #[global_allocator]
@@ -1467,7 +1469,7 @@ impl SqliteIndexWritePaths {
     }
 
     fn cleanup_temp_sidecars(&self) {
-        cleanup_sqlite_sidecars(&self.temp_path);
+        let _ = cleanup_sqlite_sidecars(&self.temp_path);
     }
 
     fn discard_temp_path(&self) {
@@ -1518,7 +1520,6 @@ fn write_index_to_connection(
     conn.execute_batch(SCHEMA_SQL)?;
     ensure_unresolved_refs_metadata_column(conn)?;
     stamp_schema_version(conn)?;
-    stamp_metadata(conn)?;
     suspend_node_fts_triggers_for_bulk_write(conn)?;
     let sqlite_setup_ms = sqlite_setup_started.elapsed().as_millis();
     let mut counts = index_javascript_files(
@@ -1526,8 +1527,11 @@ fn write_index_to_connection(
         Path::new(&request.project_path),
         request.graph_work_profile.features(),
         request.parse_walker_diagnostics,
+        request,
     )?;
     counts.profile.sqlite_write_ms += sqlite_setup_ms;
+    #[cfg(feature = "test-fault-injection")]
+    inject_post_commit_fts_rebuild_failure(conn, request)?;
     let fts_rebuild_started = Instant::now();
     rebuild_node_fts_after_bulk_write(conn)?;
     counts.profile.sqlite_write_ms += fts_rebuild_started.elapsed().as_millis();
@@ -7120,6 +7124,48 @@ fn suspend_node_fts_triggers_for_bulk_write(conn: &Connection) -> rusqlite::Resu
     )
 }
 
+#[cfg(feature = "test-fault-injection")]
+fn inject_post_commit_fts_rebuild_failure(
+    conn: &Connection,
+    request: &IndexRequest,
+) -> rusqlite::Result<()> {
+    use rusqlite::hooks::{AuthAction, Authorization};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    if !request.test_post_commit_fts_rebuild_failure {
+        return Ok(());
+    }
+    // index_javascript_files has already returned after its outermost facts
+    // COMMIT. Preserve a consistent, externally readable snapshot before the
+    // real rebuild statement is denied and normal error cleanup discards temp.
+    let snapshot_path = Path::new(&request.index_path)
+        .with_file_name(format!("post-commit-fts-failure-{}.db", std::process::id()));
+    let escaped_path = snapshot_path.to_string_lossy().replace('\'', "''");
+    conn.execute_batch(&format!("VACUUM INTO '{escaped_path}'"))?;
+    let denied = Arc::new(AtomicBool::new(false));
+    let denied_for_hook = Arc::clone(&denied);
+    conn.authorizer(Some(
+        move |context: rusqlite::hooks::AuthContext<'_>| match context.action {
+            AuthAction::Insert {
+                table_name: "nodes_fts",
+                ..
+            } => {
+                denied_for_hook.store(true, Ordering::SeqCst);
+                Authorization::Deny
+            }
+            _ => Authorization::Allow,
+        },
+    ));
+    let result = rebuild_node_fts_after_bulk_write(conn);
+    conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> Authorization>);
+    assert!(
+        denied.load(Ordering::SeqCst),
+        "post-COMMIT fault did not reach nodes_fts rebuild"
+    );
+    result
+}
+
 fn rebuild_node_fts_after_bulk_write(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "
@@ -7162,6 +7208,7 @@ fn index_javascript_files(
     project_path: &Path,
     features: GraphWorkFeatures,
     parse_walker_diagnostics: bool,
+    request: &IndexRequest,
 ) -> Result<WriteCounts, Box<dyn std::error::Error>> {
     let scan_started = Instant::now();
     let files = collect_supported_files(project_path)?;
@@ -7173,6 +7220,8 @@ fn index_javascript_files(
     );
     let transaction_started = Instant::now();
     let tx = conn.transaction()?;
+    stamp_metadata(&tx)?;
+    stamp_java_finalization(&tx, request)?;
     counts.profile.sqlite_write_ms += transaction_started.elapsed().as_millis();
     let mut parsers: HashMap<SourceLanguage, Parser> = HashMap::new();
 
@@ -7254,6 +7303,7 @@ fn index_javascript_files(
         let mut rust_trait_impl_facts = Vec::new();
         let file_node = ExtractedNode::file(&relative_path, &content, language.codegraph_name());
         let file_node_id = file_node.id.clone();
+        let file_node_index = nodes.len();
         nodes.push(file_node);
 
         if parsed.root_node().has_error() && !language.tolerates_parse_errors() {
@@ -7313,6 +7363,7 @@ fn index_javascript_files(
                     &mut edges,
                     &mut unresolved_refs,
                 )?;
+                apply_java_declaration_projection(&mut nodes, file_node_index);
             } else if language.is_kotlin() {
                 extract_kotlin_symbols(
                     parsed.root_node(),
@@ -10467,10 +10518,13 @@ fn extract_java_symbols(
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let package = find_java_package(root, source)?;
+    let package_name = package.as_ref().map(|(name, _)| name.clone());
+    let imports = java_explicit_imports(root, source)?;
+    let declared_types = java_declared_types(root, source)?;
     let mut base_from_node_id: Cow<'_, str> = Cow::Borrowed(file_node_id);
     let mut qualified_base: Cow<'_, str> = Cow::Borrowed(relative_path);
     if let Some((package_name, package_node)) = package {
-        let module_node = ExtractedNode::symbol_with_qualified_name(
+        let mut module_node = ExtractedNode::symbol_with_qualified_name(
             relative_path,
             "module",
             &package_name,
@@ -10478,6 +10532,10 @@ fn extract_java_symbols(
             "java",
             package_name.clone(),
         );
+        module_node.signature = Some(java_declaration_signature(
+            "package",
+            package_node.utf8_text(source)?,
+        ));
         let module_node_id = module_node.id.clone();
         edges.push(ExtractedEdge {
             source: file_node_id.to_string(),
@@ -10500,6 +10558,9 @@ fn extract_java_symbols(
         &base_from_node_id,
         &qualified_base,
         &[],
+        package_name.as_deref(),
+        &imports,
+        &declared_types,
         nodes,
         edges,
         unresolved_refs,
@@ -10515,6 +10576,9 @@ fn visit_java_node(
     current_from_node_id: &str,
     qualified_base: &str,
     container_stack: &[String],
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
@@ -10634,6 +10698,9 @@ fn visit_java_node(
         source,
         relative_path,
         current_from_node_id,
+        package_name,
+        imports,
+        declared_types,
         unresolved_refs,
     )?;
 
@@ -10647,6 +10714,9 @@ fn visit_java_node(
                 &child_from_node_id,
                 qualified_base,
                 &child_container_stack,
+                package_name,
+                imports,
+                declared_types,
                 nodes,
                 edges,
                 unresolved_refs,
@@ -10668,6 +10738,86 @@ struct JavaSymbolCandidate {
     signature: Option<String>,
     visibility: Option<String>,
     is_static: bool,
+}
+
+const JAVA_DECLARATION_PREFIX: &str = "zcg-java-declaration/v1\n";
+const JAVA_DECLARATION_BYTES_LIMIT: usize = 16 * 1024;
+const JAVA_PACKAGE_IMPORT_BYTES_LIMIT: usize = 64 * 1024;
+const JAVA_DECLARATION_TOTAL_BYTES_LIMIT: usize = 256 * 1024;
+
+fn apply_java_declaration_projection(nodes: &mut [ExtractedNode], file_node_index: usize) {
+    let mut declaration_bytes_total = 0usize;
+    let mut package_import_bytes = 0usize;
+    let mut overflow_reason = None;
+    for node in nodes.iter() {
+        let Some(signature) = node.signature.as_deref() else {
+            continue;
+        };
+        if !signature.starts_with(JAVA_DECLARATION_PREFIX) {
+            continue;
+        }
+        let signature_bytes = signature.len();
+        declaration_bytes_total = declaration_bytes_total.saturating_add(signature_bytes);
+        if matches!(node.kind.as_str(), "module" | "import") {
+            package_import_bytes = package_import_bytes.saturating_add(signature_bytes);
+        }
+        if overflow_reason.is_none() {
+            if signature_bytes > JAVA_DECLARATION_BYTES_LIMIT {
+                overflow_reason = Some("declaration-bytes");
+            } else if package_import_bytes > JAVA_PACKAGE_IMPORT_BYTES_LIMIT {
+                overflow_reason = Some("package-import-bytes");
+            } else if declaration_bytes_total > JAVA_DECLARATION_TOTAL_BYTES_LIMIT {
+                overflow_reason = Some("declaration-bytes-total");
+            }
+        }
+    }
+    if let Some(reason) = overflow_reason {
+        for node in nodes.iter_mut() {
+            if node
+                .signature
+                .as_deref()
+                .is_some_and(|signature| signature.starts_with(JAVA_DECLARATION_PREFIX))
+            {
+                node.signature = None;
+            }
+        }
+        nodes[file_node_index].signature = Some(format!(
+            "zcg-java-declaration-incomplete/v1\nreason={reason}\n"
+        ));
+    }
+}
+
+fn java_declaration_signature(category: &str, header: &str) -> String {
+    format!(
+        "zcg-java-declaration/v1\ncategory={category}\nheader-bytes={}\n\n{header}",
+        header.len()
+    )
+}
+
+fn java_declaration_header(
+    node: SyntaxNode,
+    source: &[u8],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let end = match node.kind() {
+        "class_declaration" => node.child_by_field_name("body"),
+        "interface_declaration" | "annotation_type_declaration" => {
+            let field_body = node.child_by_field_name("body");
+            field_body.or_else(|| {
+                let mut cursor = node.walk();
+                let body = node.children(&mut cursor).find(|child| {
+                    matches!(child.kind(), "interface_body" | "annotation_type_body")
+                });
+                body
+            })
+        }
+        "method_declaration" => node.child_by_field_name("body"),
+        _ => None,
+    };
+    let end_byte = end.map_or(node.end_byte(), |body| body.start_byte());
+    let header = std::str::from_utf8(&source[node.start_byte()..end_byte])?
+        .trim_end()
+        .to_string();
+    Ok(header)
 }
 
 /// Java modifiers live in an optional `modifiers` container whose children are
@@ -10744,7 +10894,10 @@ fn extract_java_named_symbol(
                     kind: "class",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
-                    signature: None,
+                    signature: Some(java_declaration_signature(
+                        "ordinary-class",
+                        &java_declaration_header(node, source)?,
+                    )),
                     visibility: None,
                     is_static: false,
                 });
@@ -10752,11 +10905,19 @@ fn extract_java_named_symbol(
         }
         "interface_declaration" | "annotation_type_declaration" => {
             if let Some(name_node) = node.child_by_field_name("name") {
+                let category = if node.kind() == "interface_declaration" {
+                    "ordinary-interface"
+                } else {
+                    "annotation-interface"
+                };
                 candidate = Some(JavaSymbolCandidate {
                     kind: "interface",
                     name: name_node.utf8_text(source)?.to_string(),
                     extends_name: None,
-                    signature: None,
+                    signature: Some(java_declaration_signature(
+                        category,
+                        &java_declaration_header(node, source)?,
+                    )),
                     visibility: None,
                     is_static: false,
                 });
@@ -10801,9 +10962,22 @@ fn extract_java_named_symbol(
                 });
             }
         }
-        "method_declaration"
-        | "constructor_declaration"
-        | "annotation_type_element_declaration" => {
+        "method_declaration" => {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                candidate = Some(JavaSymbolCandidate {
+                    kind: "method",
+                    name: name_node.utf8_text(source)?.to_string(),
+                    extends_name: None,
+                    signature: Some(java_declaration_signature(
+                        "ordinary-method",
+                        &java_declaration_header(node, source)?,
+                    )),
+                    visibility: None,
+                    is_static: false,
+                });
+            }
+        }
+        "constructor_declaration" | "annotation_type_element_declaration" => {
             if let Some(name_node) = node.child_by_field_name("name") {
                 candidate = Some(JavaSymbolCandidate {
                     kind: "method",
@@ -10885,7 +11059,12 @@ fn extract_java_imports(
     let Some(module_name) = java_scoped_name(node, source)? else {
         return Ok(());
     };
-    let import_node = ExtractedNode::symbol(relative_path, "import", &module_name, node, "java");
+    let mut import_node =
+        ExtractedNode::symbol(relative_path, "import", &module_name, node, "java");
+    import_node.signature = Some(java_declaration_signature(
+        "import",
+        node.utf8_text(source)?,
+    ));
     let import_node_id = import_node.id.clone();
     edges.push(ExtractedEdge {
         source: from_node_id.to_string(),
@@ -10907,11 +11086,606 @@ fn extract_java_imports(
     Ok(())
 }
 
+fn java_explicit_imports(
+    root: SyntaxNode,
+    source: &[u8],
+) -> Result<BTreeMap<String, String>, Box<dyn std::error::Error>> {
+    let mut imports = BTreeMap::new();
+    for child in root.named_children(&mut root.walk()) {
+        if child.kind() != "import_declaration" {
+            continue;
+        }
+        let declaration = child.utf8_text(source)?;
+        if declaration.contains('*') || declaration.split_whitespace().any(|part| part == "static")
+        {
+            continue;
+        }
+        if let Some(name) = java_scoped_name(child, source)? {
+            if let Some((_, leaf)) = name.rsplit_once('.') {
+                if imports.contains_key(leaf) {
+                    imports.insert(leaf.to_string(), String::new());
+                } else {
+                    imports.insert(leaf.to_string(), name);
+                }
+            }
+        }
+    }
+    Ok(imports)
+}
+
+fn java_declared_types(
+    root: SyntaxNode,
+    source: &[u8],
+) -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
+    let mut declared_types = BTreeSet::new();
+    for child in root.named_children(&mut root.walk()) {
+        if matches!(
+            child.kind(),
+            "class_declaration"
+                | "interface_declaration"
+                | "enum_declaration"
+                | "annotation_type_declaration"
+        ) {
+            if let Some(name) = child.child_by_field_name("name") {
+                declared_types.insert(name.utf8_text(source)?.to_string());
+            }
+        }
+    }
+    Ok(declared_types)
+}
+
+fn java_ancestor<'a>(node: SyntaxNode<'a>, kinds: &[&str]) -> Option<SyntaxNode<'a>> {
+    let mut ancestor = node.parent();
+    while let Some(current) = ancestor {
+        if kinds.contains(&current.kind()) {
+            return Some(current);
+        }
+        ancestor = current.parent();
+    }
+    None
+}
+
+fn java_top_level_ordinary_class(node: SyntaxNode) -> Option<SyntaxNode> {
+    let mut top_level = None;
+    let mut ancestor = node.parent();
+    while let Some(current) = ancestor {
+        if matches!(
+            current.kind(),
+            "interface_declaration"
+                | "annotation_type_declaration"
+                | "enum_declaration"
+                | "local_class_declaration"
+        ) {
+            return None;
+        }
+        if current.kind() == "class_declaration" {
+            if current
+                .parent()
+                .is_some_and(|parent| parent.kind() != "program")
+            {
+                return None;
+            }
+            top_level = Some(current);
+        }
+        ancestor = current.parent();
+    }
+    top_level
+}
+
+fn java_named_symbol_id(
+    relative_path: &str,
+    kind: &str,
+    name: &str,
+    declaration: SyntaxNode,
+) -> String {
+    ExtractedNode::symbol(
+        relative_path,
+        kind,
+        name,
+        declaration,
+        SourceLanguage::Java.codegraph_name(),
+    )
+    .id
+}
+
+fn java_declared_type(
+    raw: &str,
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
+) -> Option<String> {
+    let raw = raw.trim();
+    const PRIMITIVES: &[&str] = &[
+        "boolean", "byte", "short", "int", "long", "char", "float", "double",
+    ];
+    if PRIMITIVES.contains(&raw) {
+        return Some(raw.to_string());
+    }
+    if raw.contains('.') {
+        return Some(raw.to_string());
+    }
+    if let Some(imported) = imports.get(raw) {
+        return (!imported.is_empty()).then(|| imported.clone());
+    }
+    if declared_types.contains(raw) {
+        return Some(
+            package_name.map_or_else(|| raw.to_string(), |package| format!("{package}.{raw}")),
+        );
+    }
+    if matches!(raw, "String" | "Integer") {
+        return Some(format!("java.lang.{raw}"));
+    }
+    if let Some(package_name) = package_name {
+        return Some(format!("{package_name}.{raw}"));
+    }
+    if matches!(raw, "String" | "Integer") {
+        return Some(format!("java.lang.{raw}"));
+    }
+    None
+}
+
+fn java_declaration_scope(node: SyntaxNode) -> bool {
+    matches!(
+        node.kind(),
+        "block"
+            | "constructor_body"
+            | "method_declaration"
+            | "constructor_declaration"
+            | "class_body"
+            | "for_statement"
+            | "enhanced_for_statement"
+            | "lambda_expression"
+            | "switch_block"
+            | "catch_clause"
+            | "try_statement"
+            | "program"
+    )
+}
+
+fn java_local_declared_type(
+    name: &str,
+    expression: SyntaxNode,
+    source: &[u8],
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
+) -> Result<Option<Option<String>>, Box<dyn std::error::Error>> {
+    let mut scope = expression.parent();
+    while let Some(current) = scope {
+        if java_declaration_scope(current) {
+            let mut declarations = Vec::new();
+            for child in current.named_children(&mut current.walk()) {
+                if child.kind() == "local_variable_declaration" {
+                    declarations.push(child);
+                } else if child.kind() == "expression_statement" {
+                    declarations.extend(
+                        child
+                            .named_children(&mut child.walk())
+                            .filter(|candidate| candidate.kind() == "local_variable_declaration"),
+                    );
+                }
+            }
+            declarations.sort_by_key(|declaration| std::cmp::Reverse(declaration.start_byte()));
+            for declaration in declarations {
+                if declaration.start_byte() >= expression.start_byte() {
+                    continue;
+                }
+                if java_variable_declarator_name(declaration, source)?.as_deref() != Some(name) {
+                    continue;
+                }
+                return Ok(Some(
+                    declaration
+                        .child_by_field_name("type")
+                        .and_then(|node| node.utf8_text(source).ok())
+                        .and_then(|raw| {
+                            java_declared_type(raw, package_name, imports, declared_types)
+                        }),
+                ));
+            }
+        }
+        scope = current.parent();
+    }
+    Ok(None)
+}
+
+fn java_class_field_declared_type(
+    name: &str,
+    expression: SyntaxNode,
+    source: &[u8],
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
+) -> Result<Option<Option<String>>, Box<dyn std::error::Error>> {
+    let Some(class) = java_top_level_ordinary_class(expression) else {
+        return Ok(None);
+    };
+    let Some(body) = class.child_by_field_name("body") else {
+        return Ok(None);
+    };
+    for child in body.named_children(&mut body.walk()) {
+        if child.kind() != "field_declaration" {
+            continue;
+        }
+        if java_variable_declarator_name(child, source)?.as_deref() != Some(name) {
+            continue;
+        }
+        return Ok(Some(
+            child
+                .child_by_field_name("type")
+                .and_then(|node| node.utf8_text(source).ok())
+                .and_then(|raw| java_declared_type(raw, package_name, imports, declared_types)),
+        ));
+    }
+    Ok(None)
+}
+
+fn java_expression_fact(
+    expression: Option<SyntaxNode>,
+    caller: SyntaxNode,
+    source: &[u8],
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
+) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let Some(expression) = expression else {
+        if let Some(class) = java_top_level_ordinary_class(caller) {
+            let Some(name) = class.child_by_field_name("name") else {
+                return Ok(serde_json::json!({
+                    "kind": "implicit",
+                    "complete": false,
+                    "reason": "unsupported-receiver",
+                }));
+            };
+            let declared_type = java_declared_type(
+                name.utf8_text(source)?,
+                package_name,
+                imports,
+                declared_types,
+            );
+            return Ok(if let Some(declared_type) = declared_type {
+                serde_json::json!({
+                    "kind": "implicit",
+                    "declaredType": declared_type,
+                    "evidence": "enclosing-class",
+                    "complete": true,
+                })
+            } else {
+                serde_json::json!({
+                    "kind": "implicit",
+                    "complete": false,
+                    "reason": "unsupported-receiver",
+                })
+            });
+        }
+        return Ok(serde_json::json!({
+            "kind": "implicit",
+            "complete": false,
+            "reason": "unsupported-receiver",
+        }));
+    };
+    match expression.kind() {
+        "identifier" => {
+            let name = expression.utf8_text(source)?;
+            if let Some(declared_type) = java_local_declared_type(
+                name,
+                expression,
+                source,
+                package_name,
+                imports,
+                declared_types,
+            )? {
+                return Ok(if let Some(declared_type) = declared_type {
+                    serde_json::json!({
+                        "kind": "identifier",
+                        "name": name,
+                        "declaredType": declared_type,
+                        "evidence": "local-variable",
+                        "complete": true,
+                    })
+                } else {
+                    serde_json::json!({
+                        "kind": "identifier",
+                        "name": name,
+                        "complete": false,
+                        "reason": "unknown-declared-type",
+                    })
+                });
+            }
+            let Some(parameters) = caller.child_by_field_name("parameters") else {
+                return Ok(serde_json::json!({
+                    "kind": "identifier",
+                    "name": name,
+                    "complete": false,
+                    "reason": "missing-parameter-list",
+                }));
+            };
+            for parameter in parameters.named_children(&mut parameters.walk()) {
+                if parameter.kind() != "formal_parameter" {
+                    continue;
+                }
+                if parameter
+                    .child_by_field_name("name")
+                    .is_some_and(|candidate| candidate.utf8_text(source) == Ok(name))
+                {
+                    let declared_type = parameter
+                        .child_by_field_name("type")
+                        .and_then(|node| node.utf8_text(source).ok())
+                        .and_then(|raw| {
+                            java_declared_type(raw, package_name, imports, declared_types)
+                        });
+                    return Ok(if let Some(declared_type) = declared_type {
+                        serde_json::json!({
+                            "kind": "identifier",
+                            "name": name,
+                            "declaredType": declared_type,
+                            "evidence": "method-parameter",
+                            "complete": true,
+                        })
+                    } else {
+                        serde_json::json!({
+                            "kind": "identifier",
+                            "name": name,
+                            "complete": false,
+                            "reason": "unknown-declared-type",
+                        })
+                    });
+                }
+            }
+            if let Some(declared_type) = java_class_field_declared_type(
+                name,
+                expression,
+                source,
+                package_name,
+                imports,
+                declared_types,
+            )? {
+                return Ok(if let Some(declared_type) = declared_type {
+                    serde_json::json!({
+                        "kind": "identifier",
+                        "name": name,
+                        "declaredType": declared_type,
+                        "evidence": "class-field",
+                        "complete": true,
+                    })
+                } else {
+                    serde_json::json!({
+                        "kind": "identifier",
+                        "name": name,
+                        "complete": false,
+                        "reason": "unknown-declared-type",
+                    })
+                });
+            }
+            Ok(serde_json::json!({
+                "kind": "identifier",
+                "name": name,
+                "complete": false,
+                "reason": "declaration-not-visible",
+            }))
+        }
+        "field_access" => {
+            let is_this = expression
+                .child_by_field_name("object")
+                .is_some_and(|object| object.kind() == "this");
+            let field = expression
+                .child_by_field_name("field")
+                .filter(|field| field.kind() == "identifier");
+            let Some(field) = field.filter(|_| is_this) else {
+                return Ok(serde_json::json!({
+                    "kind": "unsupported",
+                    "syntaxKind": expression.kind(),
+                    "complete": false,
+                    "reason": "unsupported-expression",
+                }));
+            };
+            let name = field.utf8_text(source)?;
+            if let Some(declared_type) = java_class_field_declared_type(
+                name,
+                expression,
+                source,
+                package_name,
+                imports,
+                declared_types,
+            )? {
+                return Ok(if let Some(declared_type) = declared_type {
+                    serde_json::json!({
+                        "kind": "field-access",
+                        "name": name,
+                        "declaredType": declared_type,
+                        "evidence": "class-field",
+                        "complete": true,
+                    })
+                } else {
+                    serde_json::json!({
+                        "kind": "field-access",
+                        "name": name,
+                        "complete": false,
+                        "reason": "unknown-declared-type",
+                    })
+                });
+            }
+            Ok(serde_json::json!({
+                "kind": "field-access",
+                "name": name,
+                "complete": false,
+                "reason": "declaration-not-visible",
+            }))
+        }
+        "string_literal" => Ok(serde_json::json!({
+            "kind": "string-literal",
+            "declaredType": "java.lang.String",
+            "complete": true,
+        })),
+        "true" | "false" => Ok(serde_json::json!({
+            "kind": "boolean-literal",
+            "declaredType": "boolean",
+            "complete": true,
+        })),
+        _ => Ok(serde_json::json!({
+            "kind": "unsupported",
+            "syntaxKind": expression.kind(),
+            "complete": false,
+            "reason": "unsupported-expression",
+        })),
+    }
+}
+
+fn java_call_fact_metadata(
+    invocation: SyntaxNode,
+    name_node: SyntaxNode,
+    source: &[u8],
+    relative_path: &str,
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let caller = java_ancestor(
+        invocation,
+        &["method_declaration", "constructor_declaration"],
+    );
+    let top_level_class = java_top_level_ordinary_class(invocation);
+    let eligible_caller = caller.filter(|node| node.kind() == "method_declaration");
+    let complete = eligible_caller.is_some() && top_level_class.is_some();
+    let caller_fact = if let (Some(caller), Some(class)) = (eligible_caller, top_level_class) {
+        let caller_name = caller
+            .child_by_field_name("name")
+            .map(|node| node.utf8_text(source))
+            .transpose()?
+            .unwrap_or("");
+        let class_name = class
+            .child_by_field_name("name")
+            .map(|node| node.utf8_text(source))
+            .transpose()?
+            .unwrap_or("");
+        let qualified_name = format!("{}::{}", package_name.unwrap_or(relative_path), class_name,);
+        serde_json::json!({
+            "nodeId": java_named_symbol_id(relative_path, "method", caller_name, caller),
+            "category": "ordinary-method",
+            "lexicalDepth": 0,
+            "topLevelClassNodeId": java_named_symbol_id(relative_path, "class", class_name, class),
+            "topLevelClassCategory": "ordinary-class",
+            "topLevelClassQualifiedName": qualified_name,
+            "packageName": package_name,
+            "complete": true,
+        })
+    } else {
+        let mut caller_fact = serde_json::json!({
+            "category": match caller.map(|node| node.kind()) {
+                Some("constructor_declaration") => "constructor",
+                Some("method_declaration") => "ordinary-method",
+                _ => "unsupported",
+            },
+            "lexicalDepth": 0,
+            "complete": false,
+            "reason": "unsupported-caller-category",
+        });
+        if let Some(caller) = caller {
+            if let Some(name) = caller.child_by_field_name("name") {
+                caller_fact["nodeId"] = serde_json::Value::String(java_named_symbol_id(
+                    relative_path,
+                    "method",
+                    name.utf8_text(source)?,
+                    caller,
+                ));
+            }
+        }
+        caller_fact
+    };
+    let receiver = java_expression_fact(
+        invocation.child_by_field_name("object"),
+        caller.unwrap_or(invocation),
+        source,
+        package_name,
+        imports,
+        declared_types,
+    )?;
+    let receiver = if eligible_caller.is_some() {
+        receiver
+    } else if let Some(name) = receiver.get("name").cloned() {
+        serde_json::json!({
+            "kind": "identifier",
+            "name": name,
+            "complete": false,
+            "reason": "unsupported-caller-category",
+        })
+    } else {
+        serde_json::json!({
+            "kind": "unsupported",
+            "complete": false,
+            "reason": "unsupported-caller-category",
+        })
+    };
+    let mut arguments = Vec::new();
+    if let Some(argument_list) = invocation.child_by_field_name("arguments") {
+        for argument in argument_list.named_children(&mut argument_list.walk()) {
+            arguments.push(java_expression_fact(
+                Some(argument),
+                caller.unwrap_or(invocation),
+                source,
+                package_name,
+                imports,
+                declared_types,
+            )?);
+        }
+    }
+    let method_name = name_node.utf8_text(source)?;
+    if arguments.len() > 64 {
+        return Ok(serde_json::json!({
+            "zcgJavaCall": {
+                "v": 1,
+                "methodName": method_name,
+                "complete": false,
+                "reason": "argument-count",
+            }
+        })
+        .to_string());
+    }
+    let complete = complete
+        && receiver
+            .get("complete")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+        && arguments.iter().all(|argument| {
+            argument
+                .get("complete")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+        });
+    let metadata = serde_json::json!({
+        "zcgJavaCall": {
+            "v": 1,
+            "methodName": method_name,
+            "occurrence": { "byteOffset": invocation.start_byte() },
+            "caller": caller_fact,
+            "receiver": receiver,
+            "arguments": arguments,
+            "complete": complete,
+        }
+    })
+    .to_string();
+    if metadata.len() <= 16 * 1024 {
+        Ok(metadata)
+    } else {
+        Ok(serde_json::json!({
+            "zcgJavaCall": {
+                "v": 1,
+                "methodName": method_name,
+                "complete": false,
+                "reason": "metadata-bytes",
+            }
+        })
+        .to_string())
+    }
+}
+
 fn extract_java_statement_refs(
     node: SyntaxNode,
     source: &[u8],
     relative_path: &str,
     from_node_id: &str,
+    package_name: Option<&str>,
+    imports: &BTreeMap<String, String>,
+    declared_types: &BTreeSet<String>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match node.kind() {
@@ -10920,7 +11694,16 @@ fn extract_java_statement_refs(
                 return Ok(());
             };
             let reference_name = java_method_invocation_reference_name(node, name_node, source)?;
-            push_ref(
+            let metadata = java_call_fact_metadata(
+                node,
+                name_node,
+                source,
+                relative_path,
+                package_name,
+                imports,
+                declared_types,
+            )?;
+            push_ref_with_metadata(
                 unresolved_refs,
                 from_node_id,
                 &reference_name,
@@ -10928,6 +11711,7 @@ fn extract_java_statement_refs(
                 name_node,
                 relative_path,
                 SourceLanguage::Java,
+                Some(metadata),
             );
         }
         // G8: every `new T(...)` instantiates T, including the `new T(){}`
@@ -17062,6 +17846,56 @@ fn stamp_metadata(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+pub fn write_scripted_index_lifecycle(
+    db_path: &Path,
+    request: &IndexRequest,
+) -> rusqlite::Result<()> {
+    let Some(identity) = &request.java_finalization else {
+        return Ok(());
+    };
+    // Test doubles get the same native schema/lifecycle transaction as the
+    // real staging writer; the scripted stdout still owns its result taxonomy.
+    let mut conn = Connection::open(db_path)?;
+    let tx = conn.transaction()?;
+    // This adapter retains the initialized test graph instead of re-running
+    // schema.sql's one-time initial-version insert.
+    tx.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schema_versions (
+           version INTEGER PRIMARY KEY,
+           applied_at INTEGER NOT NULL,
+           description TEXT
+         );
+         CREATE TABLE IF NOT EXISTS project_metadata (
+           key TEXT PRIMARY KEY,
+           value TEXT NOT NULL,
+           updated_at INTEGER NOT NULL
+         );",
+    )?;
+    stamp_schema_version(&tx)?;
+    stamp_metadata(&tx)?;
+    stamp_java_finalization_metadata(&tx, identity)?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn stamp_java_finalization_metadata(
+    conn: &Connection,
+    identity: &JavaFinalizationIdentity,
+) -> rusqlite::Result<()> {
+    set_metadata(conn, "java_fact_generation", "p0b-java-v1")?;
+    set_metadata(conn, "java_finalization_state", "required")?;
+    set_metadata(conn, "java_finalization_run", &identity.run_id)?;
+    set_metadata(conn, "java_finalization_pass", &identity.pass_id)?;
+    Ok(())
+}
+
+fn stamp_java_finalization(conn: &Connection, request: &IndexRequest) -> rusqlite::Result<()> {
+    if let Some(identity) = &request.java_finalization {
+        stamp_java_finalization_metadata(conn, identity)?;
+    }
+    Ok(())
+}
+
 fn set_metadata(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO project_metadata (key, value, updated_at) VALUES (?1, ?2, ?3)
@@ -17072,25 +17906,77 @@ fn set_metadata(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<(
 }
 
 fn replace_active_index(temp_path: &Path, index_path: &Path) -> io::Result<()> {
+    replace_active_index_with_hooks(temp_path, index_path, || Ok(()), || Ok(()))
+}
+
+fn replace_active_index_with_hooks<BeforeRestore, BeforeCleanup>(
+    temp_path: &Path,
+    index_path: &Path,
+    before_restore: BeforeRestore,
+    before_cleanup: BeforeCleanup,
+) -> io::Result<()>
+where
+    BeforeRestore: FnOnce() -> io::Result<()>,
+    BeforeCleanup: FnOnce() -> io::Result<()>,
+{
     let backup_path = backup_index_path(index_path);
+    cleanup_sqlite_sidecars(&backup_path)?;
     if backup_path.exists() {
         fs::remove_file(&backup_path)?;
     }
 
     if index_path.exists() {
+        // SQLite derives the WAL path from the connection's original database
+        // filename. An old external handle may therefore keep writing to
+        // `index_path-wal` even after its main file has been renamed. Keep all
+        // existing old-generation sidecars with the backup so a promoted main
+        // file never opens against the previous generation's WAL/SHM.
+        for suffix in ["-wal", "-shm"] {
+            let active_sidecar = sqlite_sidecar_path(index_path, suffix);
+            if active_sidecar.exists() {
+                fs::rename(&active_sidecar, sqlite_sidecar_path(&backup_path, suffix))?;
+            }
+        }
         fs::rename(index_path, &backup_path)?;
     }
 
     match fs::rename(temp_path, index_path) {
         Ok(()) => {
-            if backup_path.exists() {
-                fs::remove_file(&backup_path)?;
-            }
+            before_cleanup()?;
+            let cleanup_result = (|| -> io::Result<()> {
+                cleanup_sqlite_sidecars(&backup_path)?;
+                if backup_path.exists() {
+                    fs::remove_file(&backup_path)?;
+                }
+                Ok(())
+            })();
+            cleanup_result.map_err(|cleanup_error| {
+                io::Error::new(
+                    cleanup_error.kind(),
+                    format!(
+                        "new active index is already promoted; backup cleanup failed: {cleanup_error}"
+                    ),
+                )
+            })?;
             Ok(())
         }
         Err(err) => {
             if backup_path.exists() {
-                let _ = fs::rename(&backup_path, index_path);
+                before_restore()?;
+                for suffix in ["-wal", "-shm"] {
+                    let backup_sidecar = sqlite_sidecar_path(&backup_path, suffix);
+                    if backup_sidecar.exists() {
+                        fs::rename(&backup_sidecar, sqlite_sidecar_path(index_path, suffix))?;
+                    }
+                }
+                if let Err(restore_error) = fs::rename(&backup_path, index_path) {
+                    return Err(io::Error::new(
+                        restore_error.kind(),
+                        format!(
+                            "temp index promotion failed: {err}; old active index restoration failed: {restore_error}"
+                        ),
+                    ));
+                }
             }
             Err(err)
         }
@@ -17113,11 +17999,20 @@ fn backup_index_path(index_path: &Path) -> PathBuf {
     index_path.with_file_name(format!("{}.rust-backup-{}", file_name, std::process::id()))
 }
 
-fn cleanup_sqlite_sidecars(path: &Path) {
+fn sqlite_sidecar_path(path: &Path, suffix: &str) -> PathBuf {
+    PathBuf::from(format!("{}{}", path.display(), suffix))
+}
+
+fn cleanup_sqlite_sidecars(path: &Path) -> io::Result<()> {
     for suffix in ["-wal", "-shm"] {
-        let sidecar = PathBuf::from(format!("{}{}", path.display(), suffix));
-        let _ = fs::remove_file(sidecar);
+        let sidecar = sqlite_sidecar_path(path, suffix);
+        match fs::remove_file(sidecar) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
     }
+    Ok(())
 }
 
 fn now_ms() -> i64 {
@@ -17152,7 +18047,10 @@ fn escape_json(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::hooks::{AuthAction, Authorization};
     use std::env;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     mod test_support {
         use super::*;
@@ -17212,6 +18110,7 @@ mod tests {
                 graph_work_profile: GraphWorkProfile::Full,
                 sqlite_write_mode,
                 parse_walker_diagnostics: false,
+                java_finalization: None,
             }
         }
 
@@ -17271,6 +18170,618 @@ mod tests {
     }
 
     #[test]
+    fn native_writer_rolls_back_stamps_when_covered_java_fact_write_fails() {
+        let dir = temp_dir("native-java-fact-rollback");
+        write_file(
+            &dir,
+            "Owner.java",
+            "class Owner { void run() { helper(); } void helper() {} }\n",
+        );
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE project_metadata (
+               key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL
+             );
+             CREATE TABLE files (
+               path TEXT PRIMARY KEY, content_hash TEXT NOT NULL, language TEXT NOT NULL,
+               size INTEGER NOT NULL, modified_at INTEGER NOT NULL, indexed_at INTEGER NOT NULL,
+               node_count INTEGER DEFAULT 0, errors TEXT
+             );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO project_metadata (key, value, updated_at)
+             VALUES ('indexed_with_engine', 'legacy-native', 1)",
+            [],
+        )
+        .unwrap();
+        // The real writer inserts Java nodes/edges/unresolved_refs before files.
+        // Abort at that later statement without replacing the native write path.
+        conn.execute_batch(
+            "CREATE TRIGGER reject_covered_java_file AFTER INSERT ON files
+             WHEN NEW.path = 'Owner.java'
+             BEGIN SELECT RAISE(ABORT, 'covered Java file write sentinel'); END;",
+        )
+        .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-native-rollback".to_string(),
+            pass_id: "pass-native-rollback".to_string(),
+        });
+
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("covered Java file write sentinel"),
+            "unexpected native error: {error}"
+        );
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+            ),
+            "legacy-native"
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM project_metadata WHERE key IN (
+                   'java_fact_generation', 'java_finalization_state',
+                   'java_finalization_run', 'java_finalization_pass',
+                   'indexed_with_engine_version', 'indexed_with_version',
+                   'indexed_with_extraction_version'
+                 )",
+            ),
+            0
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM nodes"), 0);
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM edges"), 0);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM unresolved_refs"),
+            0
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 0);
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_writer_keeps_committed_facts_when_post_commit_fts_rebuild_fails() {
+        let dir = temp_dir("native-post-commit-fts-rebuild");
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        write_index_to_connection(&mut conn, &index_request(&dir, SqliteWriteMode::Disk)).unwrap();
+        // The initial schema script is deliberately one-shot; let the next real
+        // writer invocation replay it on this same staging connection.
+        conn.execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_fts_rebuild BEFORE INSERT ON nodes_fts_docsize
+             BEGIN SELECT RAISE(ABORT, 'post-facts FTS rebuild sentinel'); END;",
+        )
+        .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-post-commit-fts".to_string(),
+            pass_id: "pass-post-commit-fts".to_string(),
+        });
+
+        write_file(&dir, "Owner.java", "class Owner { void find() {} }\n");
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error.to_string().contains("constraint failed"),
+            "unexpected native error: {error}"
+        );
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'indexed_with_engine'",
+            ),
+            "rust"
+        );
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 1);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM nodes WHERE name = 'find'"),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM edges WHERE kind = 'contains'"
+            ),
+            2
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'find'"
+            ),
+            0
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad', 'nodes_au')",
+            ),
+            0
+        );
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_writer_preserves_rebuilt_fts_when_trigger_restoration_fails() {
+        let dir = temp_dir("native-post-commit-trigger-restoration");
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        write_index_to_connection(&mut conn, &index_request(&dir, SqliteWriteMode::Disk)).unwrap();
+        conn.execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        // Arm only after the real bulk-write path suspends nodes_au. This
+        // excludes the earlier schema replay and denies its restoration alone.
+        let suspended = Arc::new(AtomicBool::new(false));
+        let denied = Arc::new(AtomicBool::new(false));
+        let suspended_for_hook = Arc::clone(&suspended);
+        let denied_for_hook = Arc::clone(&denied);
+        conn.authorizer(Some(
+            move |context: rusqlite::hooks::AuthContext<'_>| match context.action {
+                AuthAction::DropTrigger {
+                    trigger_name: "nodes_au",
+                    ..
+                } => {
+                    suspended_for_hook.store(true, Ordering::SeqCst);
+                    Authorization::Allow
+                }
+                AuthAction::CreateTrigger {
+                    trigger_name: "nodes_au",
+                    table_name: "nodes",
+                } if suspended_for_hook.load(Ordering::SeqCst) => {
+                    denied_for_hook.store(true, Ordering::SeqCst);
+                    Authorization::Deny
+                }
+                _ => Authorization::Allow,
+            },
+        ));
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-post-commit-trigger-restore".to_string(),
+            pass_id: "pass-post-commit-trigger-restore".to_string(),
+        });
+
+        write_file(&dir, "Owner.java", "class Owner { void find() {} }\n");
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error.to_string().contains("not authorized"),
+            "unexpected native error: {error}"
+        );
+        assert!(suspended.load(Ordering::SeqCst));
+        assert!(denied.load(Ordering::SeqCst));
+        conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> Authorization>);
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 1);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM nodes WHERE name = 'find'"),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'find'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad')",
+            ),
+            2
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name = 'nodes_au'",
+            ),
+            0
+        );
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_writer_retains_committed_fts_when_post_processing_fails() {
+        let dir = temp_dir("native-post-processing-failure");
+        let db_path = dir.join("staging.db");
+        let mut conn = Connection::open(&db_path).unwrap();
+        write_index_to_connection(&mut conn, &index_request(&dir, SqliteWriteMode::Disk)).unwrap();
+        // The initial schema script is deliberately one-shot; let the next real
+        // writer invocation replay it on this same staging connection.
+        conn.execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        conn.execute_batch(
+            "CREATE TRIGGER reject_post_processing_edge AFTER INSERT ON edges
+             WHEN NEW.edgeOrigin = 'rust-finalization' AND NEW.kind = 'calls'
+             BEGIN SELECT RAISE(ABORT, 'post-facts same-file edge sentinel'); END;",
+        )
+        .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-post-processing".to_string(),
+            pass_id: "pass-post-processing".to_string(),
+        });
+
+        write_file(
+            &dir,
+            "calls.ts",
+            "export function target(): number { return 1; }\n\
+             export function caller(): number { return target(); }\n",
+        );
+        let error = write_index_to_connection(&mut conn, &request).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("post-facts same-file edge sentinel"),
+            "unexpected native error: {error}"
+        );
+        drop(conn);
+
+        let reader = Connection::open(&db_path).unwrap();
+        assert_eq!(sqlite_count(&reader, "SELECT count(*) FROM files"), 1);
+        assert_eq!(
+            sqlite_count(&reader, "SELECT count(*) FROM nodes WHERE name = 'caller'"),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'caller'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM sqlite_master
+                 WHERE type = 'trigger' AND name IN ('nodes_ai', 'nodes_ad', 'nodes_au')",
+            ),
+            3
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM edges WHERE kind = 'calls' AND edgeOrigin = 'rust-finalization'",
+            ),
+            0
+        );
+        assert_eq!(
+            sqlite_count(
+                &reader,
+                "SELECT count(*) FROM unresolved_refs
+                 WHERE reference_kind = 'calls' AND reference_name = 'target'",
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_string(
+                &reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        drop(reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn native_post_processing_failure_does_not_promote_committed_staging_facts() {
+        let dir = temp_dir("native-post-processing-active-safety");
+        write_file(
+            &dir,
+            "old.ts",
+            "export function oldIndex(): number { return 1; }\n",
+        );
+        let index_path = db_path(&dir);
+        fs::create_dir_all(index_path.parent().unwrap()).unwrap();
+        let active = Connection::open(&index_path).unwrap();
+        active
+            .execute_batch(
+                "CREATE TABLE files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL);
+                 INSERT INTO files VALUES ('old.ts', 'old-active-snapshot');",
+            )
+            .unwrap();
+        drop(active);
+        write_file(
+            &dir,
+            "calls.ts",
+            "export function target(): number { return 1; }\n\
+             export function caller(): number { return target(); }\n",
+        );
+        let write_paths = SqliteIndexWritePaths::new(&index_path);
+        write_paths.prepare_temp_path().unwrap();
+        let mut staging = Connection::open(write_paths.temp_path()).unwrap();
+        write_index_to_connection(&mut staging, &index_request(&dir, SqliteWriteMode::Disk))
+            .unwrap();
+        staging
+            .execute("DELETE FROM schema_versions WHERE version = 1", [])
+            .unwrap();
+        staging
+            .execute_batch(
+                "CREATE TRIGGER reject_post_processing_edge AFTER INSERT ON edges
+                 WHEN NEW.edgeOrigin = 'rust-finalization' AND NEW.kind = 'calls'
+                 BEGIN SELECT RAISE(ABORT, 'post-facts same-file edge sentinel'); END;",
+            )
+            .unwrap();
+        let mut request = index_request(&dir, SqliteWriteMode::Disk);
+        request.java_finalization = Some(JavaFinalizationIdentity {
+            run_id: "run-active-safety".to_string(),
+            pass_id: "pass-active-safety".to_string(),
+        });
+
+        let error = write_index_to_connection(&mut staging, &request).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("post-facts same-file edge sentinel"));
+        drop(staging);
+
+        let staging_reader = Connection::open(write_paths.temp_path()).unwrap();
+        assert_eq!(
+            sqlite_count(
+                &staging_reader,
+                "SELECT count(*) FROM files WHERE path = 'calls.ts'"
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_count(
+                &staging_reader,
+                "SELECT count(*) FROM nodes_fts WHERE nodes_fts MATCH 'caller'",
+            ),
+            1
+        );
+        assert_eq!(
+            sqlite_string(
+                &staging_reader,
+                "SELECT value FROM project_metadata WHERE key = 'java_finalization_state'",
+            ),
+            "required"
+        );
+        drop(staging_reader);
+        let active_reader = Connection::open(&index_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &active_reader,
+                "SELECT content_hash FROM files WHERE path = 'old.ts'"
+            ),
+            "old-active-snapshot"
+        );
+        assert_eq!(
+            sqlite_count(
+                &active_reader,
+                "SELECT count(*) FROM sqlite_master WHERE name = 'nodes'"
+            ),
+            0
+        );
+        drop(active_reader);
+
+        // Mirrors the enclosing writer's discard branch; no replacement is run.
+        write_paths.discard_temp_path();
+        assert!(!write_paths.temp_path().exists());
+        let active_after_discard = Connection::open(&index_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &active_after_discard,
+                "SELECT content_hash FROM files WHERE path = 'old.ts'",
+            ),
+            "old-active-snapshot"
+        );
+        drop(active_after_discard);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_restores_the_old_active_index_when_temp_promotion_fails() {
+        let dir = temp_dir("replacement-old-active-restore");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        let active = Connection::open(&index_path).unwrap();
+        active
+            .execute_batch(
+                "CREATE TABLE files (path TEXT PRIMARY KEY, content_hash TEXT NOT NULL);
+                 INSERT INTO files VALUES ('old.ts', 'old-active-snapshot');",
+            )
+            .unwrap();
+        drop(active);
+        // No backup exists and the active rename can succeed. The absent temp
+        // input therefore reaches the temp -> active rename, not pre-cleanup.
+        assert!(!temp_path.exists());
+        assert!(!backup_path.exists());
+
+        let error = replace_active_index(&temp_path, &index_path).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert!(!backup_path.exists());
+        let active_reader = Connection::open(&index_path).unwrap();
+        assert_eq!(
+            sqlite_string(
+                &active_reader,
+                "SELECT content_hash FROM files WHERE path = 'old.ts'",
+            ),
+            "old-active-snapshot"
+        );
+        drop(active_reader);
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_keeps_old_sqlite_sidecars_with_the_backup_generation() {
+        let dir = temp_dir("replacement-sidecar-generation-isolation");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        fs::write(&temp_path, b"new-staged-index").unwrap();
+        for (suffix, contents) in [("-wal", b"old-wal"), ("-shm", b"old-shm")] {
+            fs::write(sqlite_sidecar_path(&index_path, suffix), contents).unwrap();
+            fs::write(sqlite_sidecar_path(&backup_path, suffix), b"stale-backup").unwrap();
+        }
+
+        replace_active_index_with_hooks(
+            &temp_path,
+            &index_path,
+            || Ok(()),
+            || {
+                // At this deterministic point the new main file is active but
+                // the old generation is still retained for recovery.
+                assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+                assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");
+                for suffix in ["-wal", "-shm"] {
+                    assert!(!sqlite_sidecar_path(&index_path, suffix).exists());
+                    assert!(sqlite_sidecar_path(&backup_path, suffix).exists());
+                }
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+        assert!(!backup_path.exists());
+        for suffix in ["-wal", "-shm"] {
+            assert!(!sqlite_sidecar_path(&index_path, suffix).exists());
+            assert!(!sqlite_sidecar_path(&backup_path, suffix).exists());
+        }
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_reports_backup_restore_failure_and_retains_the_backup() {
+        let dir = temp_dir("replacement-backup-restore-failure");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("missing-temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        assert!(!temp_path.exists());
+        assert!(!backup_path.exists());
+
+        let error = replace_active_index_with_hooks(
+            &temp_path,
+            &index_path,
+            || {
+                // A real destination-path collision makes backup -> active
+                // rename fail after temp promotion has already failed.
+                fs::create_dir(&index_path)
+            },
+            || Ok(()),
+        )
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("temp index promotion failed"), "{message}");
+        assert!(
+            message.contains("old active index restoration failed"),
+            "{message}"
+        );
+        assert!(matches!(
+            error.kind(),
+            io::ErrorKind::AlreadyExists
+                | io::ErrorKind::PermissionDenied
+                | io::ErrorKind::IsADirectory
+        ));
+        assert!(index_path.is_dir());
+        assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");
+        assert!(!temp_path.exists());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_reports_cleanup_failure_after_new_active_is_promoted() {
+        let dir = temp_dir("replacement-post-promotion-cleanup-failure");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        fs::write(&temp_path, b"new-staged-index").unwrap();
+        assert!(!backup_path.exists());
+
+        let error = replace_active_index_with_hooks(
+            &temp_path,
+            &index_path,
+            || Ok(()),
+            || {
+                // Preserve proof that promotion already happened, then replace
+                // the old backup with a directory that remove_file must reject.
+                assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+                assert_eq!(fs::read(&backup_path).unwrap(), b"old-active-index");
+                fs::remove_file(&backup_path)?;
+                fs::create_dir(&backup_path)
+            },
+        )
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(
+            message.contains("new active index is already promoted"),
+            "{message}"
+        );
+        assert!(message.contains("backup cleanup failed"), "{message}");
+        assert!(matches!(
+            error.kind(),
+            io::ErrorKind::PermissionDenied | io::ErrorKind::IsADirectory
+        ));
+        assert_eq!(fs::read(&index_path).unwrap(), b"new-staged-index");
+        assert!(!temp_path.exists());
+        assert!(backup_path.is_dir());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
+    fn replacement_rejects_a_non_file_backup_before_moving_the_active_index() {
+        let dir = temp_dir("replacement-backup-cleanup");
+        let index_path = dir.join("active.db");
+        let temp_path = dir.join("temp.db");
+        let backup_path = backup_index_path(&index_path);
+        fs::write(&index_path, b"old-active-index").unwrap();
+        fs::write(&temp_path, b"new-staged-index").unwrap();
+        // std::fs::remove_file rejects a directory on Windows and Unix. This
+        // reaches backup pre-cleanup, not either active/temp rename branch.
+        fs::create_dir(&backup_path).unwrap();
+
+        let error = replace_active_index(&temp_path, &index_path).unwrap_err();
+        assert!(matches!(
+            error.kind(),
+            io::ErrorKind::PermissionDenied | io::ErrorKind::IsADirectory
+        ));
+        assert_eq!(fs::read(&index_path).unwrap(), b"old-active-index");
+        assert!(temp_path.exists());
+        assert!(backup_path.is_dir());
+        cleanup_temp_dir(dir);
+    }
+
+    #[test]
     fn indexes_minimal_python_symbols_and_imports() {
         let dir = temp_dir("python-baseline");
         fs::write(
@@ -17302,6 +18813,7 @@ mod tests {
             &dir,
             GraphWorkProfile::MatchedTsJs.features(),
             false,
+            &index_request(&dir, SqliteWriteMode::Disk),
         )
         .unwrap();
 
@@ -18864,6 +20376,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -18934,6 +20447,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -19004,6 +20518,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -19093,6 +20608,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
         let result = run_index(&request);
         assert!(result.success, "{:?}", result.errors);
@@ -19151,6 +20667,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
         let result = run_index(&request);
         assert!(result.success, "{:?}", result.errors);
@@ -19211,6 +20728,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
         let result = run_index(&request);
         assert!(result.success, "{:?}", result.errors);
@@ -19294,6 +20812,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
         let result = run_index(&request);
         assert!(result.success, "{:?}", result.errors);
@@ -19414,6 +20933,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
         let result = run_index(&request);
         assert!(result.success, "{:?}", result.errors);
@@ -19556,6 +21076,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -19714,6 +21235,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -19817,6 +21339,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -19960,6 +21483,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20097,6 +21621,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20223,6 +21748,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20341,6 +21867,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20439,6 +21966,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20532,6 +22060,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20584,13 +22113,10 @@ mod tests {
 
     #[test]
     fn rust_core_materializes_java_interface_superinterface_signature() {
-        // 1-2-12-4: `interface VetRepository extends Repository<Vet, Integer>`
-        // must record `extends Repository` on the interface node's signature
-        // column. `Repository` is an external Spring Data type with no node in
-        // the index, so the extends ref would be cleaned up by the resolver —
-        // the materialized signature is the durable graph signal the dead-code
-        // rubric consumes. A plain interface with no extends keeps a NULL
-        // signature.
+        // 1-2-12-4: an interface declaration retains its complete, byte-delimited
+        // header, including external and generic superinterfaces. The existing
+        // TypeScript semantic projection derives `extends Repository` for the
+        // dead-code rubric; native storage does not duplicate that projection.
         let dir = temp_dir("rust-java-superinterface-signature");
         let src = dir.join("com").join("example");
         fs::create_dir_all(&src).unwrap();
@@ -20631,8 +22157,13 @@ mod tests {
             .unwrap();
         assert_eq!(
             sig.as_deref(),
-            Some("extends Repository"),
-            "VetRepository must materialize its (generics-stripped) superinterface"
+            Some(concat!(
+                "zcg-java-declaration/v1\n",
+                "category=ordinary-interface\n",
+                "header-bytes=63\n\n",
+                "public interface VetRepository extends Repository<Vet, Integer>"
+            )),
+            "VetRepository must retain its complete declaration header"
         );
 
         let plain_sig: Option<String> = conn
@@ -20642,10 +22173,15 @@ mod tests {
             .unwrap()
             .query_row([], |row| row.get(0))
             .unwrap();
-        assert!(
-            plain_sig.is_none(),
-            "Plain interface with no extends must keep a NULL signature, got {:?}",
-            plain_sig
+        assert_eq!(
+            plain_sig.as_deref(),
+            Some(concat!(
+                "zcg-java-declaration/v1\n",
+                "category=ordinary-interface\n",
+                "header-bytes=22\n\n",
+                "public interface Plain"
+            )),
+            "Plain must retain its complete declaration header"
         );
 
         let multi_sig: Option<String> = conn
@@ -20657,8 +22193,13 @@ mod tests {
             .unwrap();
         assert_eq!(
             multi_sig.as_deref(),
-            Some("extends Alpha,Beta"),
-            "Multi must materialize all superinterfaces, generics stripped"
+            Some(concat!(
+                "zcg-java-declaration/v1\n",
+                "category=ordinary-interface\n",
+                "header-bytes=50\n\n",
+                "public interface Multi extends Alpha, Beta<String>"
+            )),
+            "Multi must retain all superinterfaces and their generic arguments"
         );
         cleanup_temp_dir(dir);
     }
@@ -20707,6 +22248,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20814,6 +22356,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20894,6 +22437,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -20959,6 +22503,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -21022,6 +22567,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -21160,6 +22706,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -21302,6 +22849,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -21857,6 +23405,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -22019,6 +23568,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23070,6 +24620,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23259,6 +24810,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: true,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23322,6 +24874,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23366,6 +24919,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23426,6 +24980,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23521,6 +25076,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23607,6 +25163,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23654,6 +25211,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23716,6 +25274,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::MatchedTsJs,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -23806,6 +25365,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24008,6 +25568,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24107,6 +25668,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24193,6 +25755,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24311,6 +25874,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24400,6 +25964,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24497,6 +26062,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24563,6 +26129,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24706,6 +26273,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24795,6 +26363,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -24917,6 +26486,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25006,6 +26576,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25091,6 +26662,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25186,6 +26758,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25265,6 +26838,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25324,6 +26898,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25419,6 +26994,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25496,6 +27072,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25582,6 +27159,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25659,6 +27237,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25716,6 +27295,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25794,6 +27374,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25869,6 +27450,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -25941,6 +27523,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26005,6 +27588,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26097,6 +27681,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26184,6 +27769,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26295,6 +27881,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26394,6 +27981,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26522,6 +28110,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26639,6 +28228,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26730,6 +28320,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26834,6 +28425,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -26952,6 +28544,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27053,6 +28646,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27176,6 +28770,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27336,6 +28931,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27398,6 +28994,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27457,6 +29054,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27524,6 +29122,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let initial = run_index(&initial_request);
@@ -27625,6 +29224,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::FinalFlush,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);
@@ -27675,6 +29275,7 @@ mod tests {
             graph_work_profile: GraphWorkProfile::Full,
             sqlite_write_mode: SqliteWriteMode::Disk,
             parse_walker_diagnostics: false,
+            java_finalization: None,
         };
 
         let result = run_index(&request);

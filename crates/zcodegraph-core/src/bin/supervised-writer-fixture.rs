@@ -33,11 +33,15 @@ fn write_until_killed(args: &[String]) -> ! {
     loop {
         conn.execute("INSERT INTO writes(value) VALUES (?1)", [count.to_string()])
             .expect("write row");
+        // Publish only complete state snapshots; readers may poll while the
+        // writer is running and must never observe a truncated JSON document.
+        let next_state = state.with_extension("json.next");
         std::fs::write(
-            &state,
+            &next_state,
             format!("{{\"pid\":{},\"count\":{}}}", process::id(), count),
         )
-        .expect("write state");
+        .expect("write next state");
+        std::fs::rename(&next_state, &state).expect("publish complete state");
         count += 1;
         std::thread::sleep(Duration::from_millis(15));
     }

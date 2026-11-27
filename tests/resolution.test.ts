@@ -16,7 +16,8 @@ import { resolveImportPath, extractImportMappings, resolveJvmImport, loadCppIncl
 import type { UnresolvedRef } from '../src/resolution/types';
 import { detectFrameworks, getAllFrameworkResolvers } from '../src/resolution/frameworks';
 import { QueryBuilder } from '../src/db/queries';
-import { DatabaseConnection } from '../src/db';
+import { DatabaseConnection, issueJavaFinalizationToken } from '../src/db';
+import { createDatabase } from '../src/db/sqlite-adapter';
 import type { ResolvedRef } from '../src/resolution/types';
 
 describe('Resolution Module', () => {
@@ -255,6 +256,552 @@ describe('Resolution Module', () => {
         throw error;
       }
     }
+
+    it('1-9-15: reconciles real resolver statement and COMMIT receipts on fresh readers before cleanup', () => {
+      const dbPath = path.join(tempDir, 'resolver-receipts.db');
+      const token = issueJavaFinalizationToken('resolver-run', 'pass-1');
+      const setup = DatabaseConnection.initialize(dbPath);
+      const metadata = setup.getDb().prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      );
+      metadata.run('java_finalization_state', 'required', 1);
+      metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+      metadata.run('java_finalization_run', token.runId, 1);
+      metadata.run('java_finalization_pass', token.passId, 1);
+      setup.close();
+
+      const connectionId = 'resolver-writer-1';
+      const events: string[] = [];
+      const rawReceipts: unknown[] = [];
+      const publicReceipts: unknown[] = [];
+      let writer: DatabaseConnection | undefined;
+      try {
+        writer = DatabaseConnection.openForJavaFinalization(
+          dbPath,
+          token,
+          (_path, options) => createDatabase(dbPath, {
+            ...options,
+            ...(options?.readOnly ? {} : {
+              observation: {
+                connectionId,
+                runId: token.runId,
+                passId: token.passId,
+              },
+            }),
+          }),
+        );
+        const queries = new QueryBuilder(writer.getDb());
+        queries.attachJavaWriteObserverForEvaluation({
+          recordCommittedEdges(receipt) {
+            events.push('committed-edges');
+            expect(receipt.runId).toBe(token.runId);
+            expect(receipt.passId).toBe(token.passId);
+            expect(receipt.connectionId).toBe(connectionId);
+            expect(receipt.commitOrdinal).toBe(1);
+            expect(receipt.statements).toEqual([
+              expect.objectContaining({
+                edge: expect.objectContaining({
+                  source: 'function:source',
+                  target: 'function:target',
+                  kind: 'calls',
+                  line: 2,
+                  column: 4,
+                }),
+                changes: 1,
+                lastInsertRowid: expect.any(Number),
+              }),
+            ]);
+            expect(Number.isSafeInteger(receipt.statements[0]!.lastInsertRowid)).toBe(true);
+            expect(receipt.statements[0]!.lastInsertRowid).toBeGreaterThan(0);
+
+            const rawReader = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+            const publicReader = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+            const publicQueries = new QueryBuilder(publicReader.getDb());
+            try {
+              const rawRows = rawReader.getDb().prepare(
+                'SELECT rowid AS edge_rowid, source, target, kind, line, col FROM edges ORDER BY rowid',
+              ).all();
+              const publicEdges = publicQueries.getOutgoingEdges('function:source');
+              rawReceipts.push(...rawRows);
+              publicReceipts.push(...publicEdges);
+              expect(rawRows).toEqual([
+                expect.objectContaining({
+                  edge_rowid: receipt.statements[0]!.lastInsertRowid,
+                  source: 'function:source',
+                  target: 'function:target',
+                  kind: 'calls',
+                  line: 2,
+                  col: 4,
+                }),
+              ]);
+              expect(publicEdges).toEqual([
+                expect.objectContaining({
+                  source: 'function:source',
+                  target: 'function:target',
+                  kind: 'calls',
+                  line: 2,
+                  column: 4,
+                }),
+              ]);
+              expect(rawReader.getDb().prepare(
+                'SELECT rowid FROM unresolved_refs WHERE reference_name = ?',
+              ).all('target')).toHaveLength(1);
+            } finally {
+              publicReader.close();
+              rawReader.close();
+            }
+          },
+        });
+        const source = cleanupNode('function:source', 'source');
+        const target = cleanupNode('function:target', 'target');
+        queries.insertNodes([source, target]);
+        queries.insertUnresolvedRefsBatch([{
+          fromNodeId: source.id,
+          referenceName: 'target',
+          referenceKind: 'calls',
+          line: 2,
+          column: 4,
+          filePath: source.filePath,
+          language: 'typescript',
+        }]);
+        const originalDelete = queries.deleteUnresolvedReferencesByRowIds.bind(queries);
+        queries.deleteUnresolvedReferencesByRowIds = (rowids) => {
+          expect(events).toEqual(['committed-edges']);
+          events.push('cleanup');
+          return originalDelete(rowids);
+        };
+
+        const resolver = new ReferenceResolver(tempDir, queries);
+        const result = resolver.resolveAndPersist(queries.getUnresolvedReferences());
+        expect(result.resolved).toHaveLength(1);
+        expect(events).toEqual(['committed-edges', 'cleanup']);
+        expect(rawReceipts).toHaveLength(1);
+        expect(publicReceipts).toHaveLength(1);
+      } finally {
+        writer?.close();
+      }
+    });
+
+    it('1-9-15: reconciles precise resolver cleanup DELETE and COMMIT receipts on a fresh reader', () => {
+      const dbPath = path.join(tempDir, 'resolver-cleanup-receipts.db');
+      const token = issueJavaFinalizationToken('resolver-cleanup-run', 'pass-1');
+      const setup = DatabaseConnection.initialize(dbPath);
+      const metadata = setup.getDb().prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      );
+      metadata.run('java_finalization_state', 'required', 1);
+      metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+      metadata.run('java_finalization_run', token.runId, 1);
+      metadata.run('java_finalization_pass', token.passId, 1);
+      setup.close();
+
+      const connectionId = 'resolver-cleanup-writer-1';
+      const events: string[] = [];
+      let writer: DatabaseConnection | undefined;
+      try {
+        writer = DatabaseConnection.openForJavaFinalization(
+          dbPath,
+          token,
+          (_path, options) => createDatabase(dbPath, {
+            ...options,
+            ...(options?.readOnly ? {} : {
+              observation: { connectionId, runId: token.runId, passId: token.passId },
+            }),
+          }),
+        );
+        const queries = new QueryBuilder(writer.getDb());
+        queries.attachJavaWriteObserverForEvaluation({
+          recordCommittedEdges(receipt) {
+            expect(receipt.commitOrdinal).toBe(1);
+            events.push('committed-edges');
+          },
+          recordCommittedCleanup(receipt) {
+            events.push('committed-cleanup');
+            expect(receipt.runId).toBe(token.runId);
+            expect(receipt.passId).toBe(token.passId);
+            expect(receipt.connectionId).toBe(connectionId);
+            expect(receipt.commitOrdinal).toBe(2);
+            expect(receipt.statements).toEqual([{
+              rowids: [resolvedRowid],
+              changes: 1,
+            }]);
+
+            const reader = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+            const publicQueries = new QueryBuilder(reader.getDb());
+            try {
+              expect(reader.getDb().prepare(
+                'SELECT rowid FROM unresolved_refs WHERE rowid = ?',
+              ).all(resolvedRowid)).toEqual([]);
+              expect(publicQueries.getUnresolvedReferences()).toMatchObject([{
+                referenceName: 'missing',
+                referenceKind: 'calls',
+              }]);
+            } finally {
+              reader.close();
+            }
+          },
+        });
+        const source = cleanupNode('function:source', 'source');
+        const target = cleanupNode('function:target', 'target');
+        queries.insertNodes([source, target]);
+        queries.insertUnresolvedRefsBatch([
+          {
+            fromNodeId: source.id,
+            referenceName: 'target',
+            referenceKind: 'calls',
+            line: 2,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+          {
+            fromNodeId: source.id,
+            referenceName: 'missing',
+            referenceKind: 'calls',
+            line: 3,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+        ]);
+        const originalDelete = queries.deleteUnresolvedReferencesByRowIds.bind(queries);
+        queries.deleteUnresolvedReferencesByRowIds = (rowids) => {
+          events.push('cleanup-request');
+          return originalDelete(rowids);
+        };
+        const refs = queries.getUnresolvedReferences();
+        const resolvedRowid = refs.find((ref) => ref.referenceName === 'target')!.rowid!;
+
+        const resolver = new ReferenceResolver(tempDir, queries);
+        const result = resolver.resolveAndPersist(refs);
+        expect(result.resolved).toHaveLength(1);
+        expect(result.unresolved).toHaveLength(1);
+        expect(events).toEqual(['committed-edges', 'cleanup-request', 'committed-cleanup']);
+      } finally {
+        writer?.close();
+      }
+    });
+
+    it('1-9-15-2: tuple cleanup emits committed-cleanup receipt with tuple params and fresh reader reconciliation', () => {
+      const dbPath = path.join(tempDir, 'resolver-tuple-cleanup.db');
+      const token = issueJavaFinalizationToken('resolver-run', 'pass-1');
+      const setup = DatabaseConnection.initialize(dbPath);
+      const metadata = setup.getDb().prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      );
+      metadata.run('java_finalization_state', 'required', 1);
+      metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+      metadata.run('java_finalization_run', token.runId, 1);
+      metadata.run('java_finalization_pass', token.passId, 1);
+      setup.close();
+
+      const connectionId = 'resolver-tuple-writer';
+      const events: string[] = [];
+      let writer: DatabaseConnection | undefined;
+      try {
+        writer = DatabaseConnection.openForJavaFinalization(
+          dbPath,
+          token,
+          (_path, options) => createDatabase(dbPath, {
+            ...options,
+            ...(options?.readOnly ? {} : {
+              observation: { connectionId, runId: token.runId, passId: token.passId },
+            }),
+          }),
+        );
+        const queries = new QueryBuilder(writer.getDb());
+        queries.attachJavaWriteObserverForEvaluation({
+          recordCommittedEdges(receipt) {
+            events.push('committed-edges');
+            expect(receipt.commitOrdinal).toBe(1);
+          },
+          recordCommittedCleanup(receipt) {
+            events.push('committed-cleanup');
+            expect(receipt.runId).toBe(token.runId);
+            expect(receipt.passId).toBe(token.passId);
+            expect(receipt.connectionId).toBe(connectionId);
+            expect(receipt.commitOrdinal).toBe(2);
+            expect(receipt.statements).toEqual([{
+              tuples: [
+                { fromNodeId: 'function:source', referenceName: 'target', referenceKind: 'calls' },
+              ],
+              changes: 1,
+            }]);
+
+            const reader = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+            const publicQueries = new QueryBuilder(reader.getDb());
+            try {
+              expect(reader.getDb().prepare(
+                'SELECT rowid FROM unresolved_refs WHERE reference_name = ?',
+              ).all('target')).toEqual([]);
+              expect(publicQueries.getUnresolvedReferences()).toMatchObject([{
+                referenceName: 'missing',
+                referenceKind: 'calls',
+              }]);
+            } finally {
+              reader.close();
+            }
+          },
+        });
+        const source = cleanupNode('function:source', 'source');
+        const target = cleanupNode('function:target', 'target');
+        queries.insertNodes([source, target]);
+        queries.insertUnresolvedRefsBatch([
+          {
+            fromNodeId: source.id,
+            referenceName: 'target',
+            referenceKind: 'calls',
+            line: 2,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+          {
+            fromNodeId: source.id,
+            referenceName: 'missing',
+            referenceKind: 'calls',
+            line: 3,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+        ]);
+        const originalDelete = queries.deleteSpecificResolvedReferences.bind(queries);
+        queries.deleteSpecificResolvedReferences = (refs) => {
+          events.push('cleanup-request');
+          return originalDelete(refs);
+        };
+        // Build refs without rowid so deleteResolvedOriginals falls through to tuple path.
+        const refs: UnresolvedReference[] = [
+          {
+            fromNodeId: source.id,
+            referenceName: 'target',
+            referenceKind: 'calls',
+            line: 2,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+          {
+            fromNodeId: source.id,
+            referenceName: 'missing',
+            referenceKind: 'calls',
+            line: 3,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+        ];
+        const resolver = new ReferenceResolver(tempDir, queries);
+        const result = resolver.resolveAndPersist(refs);
+        expect(result.resolved).toHaveLength(1);
+        expect(result.unresolved).toHaveLength(1);
+        expect(events).toEqual(['committed-edges', 'cleanup-request', 'committed-cleanup']);
+      } finally {
+        writer?.close();
+      }
+    });
+
+    it('1-9-15-2: range cleanup emits committed-cleanup receipt with range params and fresh reader reconciliation', async () => {
+      const dbPath = path.join(tempDir, 'resolver-range-cleanup.db');
+      const token = issueJavaFinalizationToken('resolver-run', 'pass-1');
+      const setup = DatabaseConnection.initialize(dbPath);
+      const metadata = setup.getDb().prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      );
+      metadata.run('java_finalization_state', 'required', 1);
+      metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+      metadata.run('java_finalization_run', token.runId, 1);
+      metadata.run('java_finalization_pass', token.passId, 1);
+      setup.close();
+
+      const connectionId = 'resolver-range-writer';
+      const events: string[] = [];
+      let writer: DatabaseConnection | undefined;
+      try {
+        writer = DatabaseConnection.openForJavaFinalization(
+          dbPath,
+          token,
+          (_path, options) => createDatabase(dbPath, {
+            ...options,
+            ...(options?.readOnly ? {} : {
+              observation: { connectionId, runId: token.runId, passId: token.passId },
+            }),
+          }),
+        );
+        const queries = new QueryBuilder(writer.getDb());
+        queries.attachJavaWriteObserverForEvaluation({
+          recordCommittedEdges(receipt) {
+            events.push('committed-edges');
+            expect(receipt.commitOrdinal).toBe(1);
+          },
+          recordCommittedCleanup(receipt) {
+            events.push('committed-cleanup');
+            expect(receipt.runId).toBe(token.runId);
+            expect(receipt.passId).toBe(token.passId);
+            expect(receipt.connectionId).toBe(connectionId);
+            expect(receipt.commitOrdinal).toBe(2);
+            expect(receipt.statements).toEqual([
+              { range: { start: 1, end: 2 }, changes: 2 },
+            ]);
+
+            const reader = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+            const publicQueries = new QueryBuilder(reader.getDb());
+            try {
+              expect(reader.getDb().prepare(
+                'SELECT rowid FROM unresolved_refs WHERE reference_name = ?',
+              ).all('target')).toEqual([]);
+              // resolveAndPersistBatched deletes both resolved and intentionally-unresolved refs.
+              expect(publicQueries.getUnresolvedReferences()).toEqual([]);
+            } finally {
+              reader.close();
+            }
+          },
+        });
+        const source = cleanupNode('function:source', 'source');
+        const target = cleanupNode('function:target', 'target');
+        queries.insertNodes([source, target]);
+        queries.insertUnresolvedRefsBatch([
+          {
+            fromNodeId: source.id,
+            referenceName: 'target',
+            referenceKind: 'calls',
+            line: 2,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+          {
+            fromNodeId: source.id,
+            referenceName: 'missing',
+            referenceKind: 'calls',
+            line: 3,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+        ]);
+        const originalDelete = queries.deleteUnresolvedReferencesByRowIdRanges.bind(queries);
+        queries.deleteUnresolvedReferencesByRowIdRanges = (rowids) => {
+          events.push('cleanup-request');
+          return originalDelete(rowids);
+        };
+        const resolver = new ReferenceResolver(tempDir, queries);
+        const result = await resolver.resolveAndPersistBatched();
+        expect(result.stats.resolved).toBe(1);
+        expect(result.stats.unresolved).toBe(1);
+        expect(events).toEqual(['committed-edges', 'cleanup-request', 'committed-cleanup']);
+      } finally {
+        writer?.close();
+      }
+    });
+
+    it('1-9-15-2: callback synthesizer edges emit independent committed-edges receipt with fresh reader reconciliation', async () => {
+      const dbPath = path.join(tempDir, 'resolver-callback-receipt.db');
+      const token = issueJavaFinalizationToken('resolver-run', 'pass-1');
+      const setup = DatabaseConnection.initialize(dbPath);
+      const metadata = setup.getDb().prepare(
+        'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)',
+      );
+      metadata.run('java_finalization_state', 'required', 1);
+      metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+      metadata.run('java_finalization_run', token.runId, 1);
+      metadata.run('java_finalization_pass', token.passId, 1);
+      setup.close();
+
+      const connectionId = 'resolver-callback-writer';
+      const events: string[] = [];
+      let callbackEdgeCount = 0;
+      let writer: DatabaseConnection | undefined;
+      try {
+        writer = DatabaseConnection.openForJavaFinalization(
+          dbPath,
+          token,
+          (_path, options) => createDatabase(dbPath, {
+            ...options,
+            ...(options?.readOnly ? {} : {
+              observation: { connectionId, runId: token.runId, passId: token.passId },
+            }),
+          }),
+        );
+        const queries = new QueryBuilder(writer.getDb());
+        const source = cleanupNode('function:source', 'source');
+        const target = cleanupNode('function:target', 'target');
+        // Java interface + class + methods to trigger interfaceOverrideEdges.
+        const iface = { ...cleanupNode('interface:Worker', 'Worker'), kind: 'interface' as const, language: 'java' as const };
+        const ifaceMethod = { ...cleanupNode('method:Worker.work', 'work'), kind: 'method' as const, language: 'java' as const, filePath: 'Worker.java' };
+        const cls = { ...cleanupNode('class:WorkerImpl', 'WorkerImpl'), kind: 'class' as const, language: 'java' as const };
+        const clsMethod = { ...cleanupNode('method:WorkerImpl.work', 'work'), kind: 'method' as const, language: 'java' as const, filePath: 'WorkerImpl.java' };
+        queries.insertNodes([source, target, iface, ifaceMethod, cls, clsMethod]);
+        queries.insertEdges([
+          { source: iface.id, target: ifaceMethod.id, kind: 'contains', line: 2 },
+          { source: cls.id, target: clsMethod.id, kind: 'contains', line: 3 },
+          { source: cls.id, target: iface.id, kind: 'implements', line: 1 },
+        ]);
+        queries.insertUnresolvedRefsBatch([
+          {
+            fromNodeId: source.id,
+            referenceName: 'target',
+            referenceKind: 'calls',
+            line: 2,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+          {
+            fromNodeId: source.id,
+            referenceName: 'missing',
+            referenceKind: 'calls',
+            line: 3,
+            column: 4,
+            filePath: source.filePath,
+            language: 'typescript',
+          },
+        ]);
+        // Attach observer AFTER setup so setup inserts don't trigger receipts.
+        queries.attachJavaWriteObserverForEvaluation({
+          recordCommittedEdges(receipt) {
+            events.push(`committed-edges:${receipt.commitOrdinal}`);
+            if (receipt.commitOrdinal === 1) {
+              // Baseline resolver edges: source→target.
+              expect(receipt.statements).toHaveLength(1);
+              expect(receipt.statements[0]!.edge.source).toBe('function:source');
+              expect(receipt.statements[0]!.edge.target).toBe('function:target');
+            } else if (receipt.commitOrdinal === 2) {
+              // Callback synthesizer edges: interface method → class method.
+              callbackEdgeCount = receipt.statements.length;
+              expect(receipt.statements.length).toBeGreaterThan(0);
+              for (const stmt of receipt.statements) {
+                expect(stmt.edge.edgeOrigin).toBe('heuristic');
+                expect(stmt.edge.metadata?.synthesizedBy).toBe('interface-impl');
+              }
+              // Fresh reader reconciliation inside callback.
+              const reader = DatabaseConnection.openForJavaFinalizationVerification(dbPath, token);
+              try {
+                const rawRows = reader.getDb().prepare(
+                  "SELECT source, target, kind FROM edges WHERE metadata LIKE '%interface-impl%'",
+                ).all();
+                expect(rawRows.length).toBe(receipt.statements.length);
+                for (const row of rawRows) {
+                  expect(row.kind).toBe('calls');
+                }
+              } finally {
+                reader.close();
+              }
+            }
+          },
+        });
+        const resolver = new ReferenceResolver(tempDir, queries);
+        const result = await resolver.resolveAndPersistBatched();
+        expect(result.stats.resolved).toBe(1);
+        expect(result.stats.unresolved).toBe(1);
+        expect(result.stats.byMethod['callback-synthesis']).toBeGreaterThan(0);
+        expect(events).toEqual(['committed-edges:1', 'committed-edges:2']);
+        expect(callbackEdgeCount).toBeGreaterThan(0);
+      } finally {
+        writer?.close();
+      }
+    });
 
     it('non-batched persistence deletes resolved refs and leaves unresolved refs in place', () => withCleanupDb((queries) => {
       const source = cleanupNode('source', 'source');

@@ -23,12 +23,32 @@ export interface SqliteStatement {
   iterate(...params: any[]): IterableIterator<any>;
 }
 
+export interface SqliteCommitIdentity {
+  connectionId: string;
+  runId: string;
+  passId: string;
+}
+
+export interface SqliteCommitReceipt extends SqliteCommitIdentity {
+  commitOrdinal: number;
+}
+
+/** Private evaluation handoff; this is not a package/public protocol. */
+export interface SqliteTransactionObserver {
+  observeCommit<T>(
+    statements: T[],
+    onCommitted: (receipt: SqliteCommitReceipt & { statements: T[] }) => void,
+  ): void;
+}
+
 export interface SqliteDatabase {
   prepare(sql: string): SqliteStatement;
   exec(sql: string): void;
   pragma(str: string, options?: { simple?: boolean }): any;
   transaction<T>(fn: (...args: any[]) => T): (...args: any[]) => T;
   close(): void;
+  /** Guard-only operation; ordinary adapters need not expose deferred opens. */
+  openConnection?(): void;
   readonly open: boolean;
 }
 
@@ -37,6 +57,12 @@ export interface SqliteDatabase {
  * so `zcodegraph status` and the per-instance reporting have a stable shape.
  */
 export type SqliteBackend = 'node-sqlite';
+
+/** Internal evaluation composition only; production uses the default factory. */
+export type SqliteDatabaseFactory = (
+  dbPath: string,
+  options?: SqliteAdapterOptions,
+) => { db: SqliteDatabase; backend: SqliteBackend };
 
 /**
  * Wraps Node's built-in `node:sqlite` (`DatabaseSync`) to match the
@@ -61,22 +87,48 @@ export type SqliteBackend = 'node-sqlite';
  */
 export interface SqliteAdapterOptions {
   allowExtension?: boolean;
+  /** Internal lifecycle guard only: never create or mutate a database. */
+  readOnly?: boolean;
+  open?: boolean;
+  /** Internal evaluation observation only; absent in production composition. */
+  onExec?: (sql: string) => void;
+  observation?: SqliteCommitIdentity;
 }
 
 class NodeSqliteAdapter implements SqliteDatabase {
   private _db: any;
+  private onExec?: (sql: string) => void;
+  private observation?: SqliteCommitIdentity;
+  private transactionDepth = 0;
+  private edgeCommitOrdinal = 0;
+  private pendingCommit?: {
+    statements: unknown[];
+    onCommitted: (
+      receipt: SqliteCommitReceipt & { statements: unknown[] },
+    ) => void;
+  };
 
   constructor(dbPath: string, options: SqliteAdapterOptions = {}) {
+    this.onExec = options.onExec;
+    this.observation = options.observation;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { DatabaseSync } = require('node:sqlite');
     // node:sqlite (Node 22.13+) gates extension loading behind the
     // `allowExtension` constructor flag; pass it through verbatim. When the
     // flag is omitted we rely on node:sqlite's default (disabled).
-    this._db = new DatabaseSync(dbPath, { allowExtension: options.allowExtension ?? false });
+    this._db = new DatabaseSync(dbPath, {
+      allowExtension: options.allowExtension ?? false,
+      readOnly: options.readOnly ?? false,
+      open: options.open ?? true,
+    });
   }
 
   get open(): boolean {
     return this._db.isOpen;
+  }
+
+  openConnection(): void {
+    this._db.open();
   }
 
   prepare(sql: string): SqliteStatement {
@@ -105,6 +157,7 @@ class NodeSqliteAdapter implements SqliteDatabase {
   }
 
   exec(sql: string): void {
+    this.onExec?.(sql);
     this._db.exec(sql);
   }
 
@@ -127,13 +180,74 @@ class NodeSqliteAdapter implements SqliteDatabase {
 
   transaction<T>(fn: (...args: any[]) => T): (...args: any[]) => T {
     return (...args: any[]) => {
-      this._db.exec('BEGIN');
+      const outermost = this.transactionDepth === 0;
+      let pending: NodeSqliteAdapter['pendingCommit'];
+      let transactionObserver: SqliteTransactionObserver | undefined;
+      if (this.observation) {
+        if (outermost) {
+          pending = undefined;
+        }
+        // Nested helpers may run before their outer transaction registers a
+        // receipt; observeCommit enforces the one-batch owner when invoked.
+        transactionObserver = {
+          observeCommit: (statements, onCommitted) => {
+            if (pending || (!outermost && this.pendingCommit)) {
+              throw new Error('A transaction may own only one observed edge-write batch.');
+            }
+            const committed = onCommitted as (
+              receipt: SqliteCommitReceipt & { statements: unknown[] },
+            ) => void;
+            if (outermost) {
+              pending = { statements, onCommitted: committed };
+            } else {
+              this.pendingCommit = { statements, onCommitted: committed };
+            }
+          },
+        };
+      }
+      this.transactionDepth++;
+      if (outermost) this.exec('BEGIN');
       try {
-        const result = fn(...args);
-        this._db.exec('COMMIT');
+        let result: T;
+        try {
+          result = transactionObserver
+            ? fn(...args, transactionObserver)
+            : fn(...args);
+          if (outermost) {
+            this.pendingCommit = pending;
+            this.exec('COMMIT');
+            pending = undefined;
+          }
+        } catch (error) {
+          this.pendingCommit = undefined;
+          if (outermost) {
+            try {
+              this.exec('ROLLBACK');
+            } catch {
+              // The transaction or COMMIT failure remains the primary error.
+            }
+          }
+          throw error;
+        } finally {
+          this.transactionDepth--;
+        }
+        const committed = this.pendingCommit;
+        this.pendingCommit = undefined;
+        if (committed) {
+          if (!this.observation) {
+            throw new Error('Observed Java edge writes have no connection identity.');
+          }
+          const { statements, ...commitReceipt } = {
+            ...this.observation,
+            commitOrdinal: ++this.edgeCommitOrdinal,
+            statements: committed.statements,
+          };
+          committed.onCommitted({ ...commitReceipt, statements });
+        }
         return result;
       } catch (error) {
-        this._db.exec('ROLLBACK');
+        this.transactionDepth = 0;
+        this.pendingCommit = undefined;
         throw error;
       }
     };

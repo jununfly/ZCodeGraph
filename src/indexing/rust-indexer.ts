@@ -15,6 +15,7 @@ interface RustIndexerOptions {
   sqliteWriteMode?: 'disk' | 'final-flush' | 'memory-final-flush';
   parseWalkerDiagnostics?: boolean;
   profiling?: 'heap';
+  javaFinalization?: { runId: string; passId: string };
   onProgress?: (progress: IndexProgress) => void;
 }
 
@@ -388,6 +389,12 @@ export async function runRustIndexerBorrowingGate(
   }
   if (options.parseWalkerDiagnostics) {
     args.push('--parse-walker-diagnostics');
+  }
+  if (options.javaFinalization) {
+    args.push(
+      '--java-finalization-run', options.javaFinalization.runId,
+      '--java-finalization-pass', options.javaFinalization.passId,
+    );
   }
 
   return new Promise<IndexResult>((resolve, reject) => {

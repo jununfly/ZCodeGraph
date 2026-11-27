@@ -281,6 +281,25 @@ describe('R3 — dynamic-dispatch exemptions', () => {
     expect(v.evidence.superinterface).toBe('Repository');
   });
 
+  it('1-9-15: decodes a v1 interface header for the Spring Data graph signal', () => {
+    const header = 'public interface VetRepository extends org.springframework.data.repository.Repository<Vet, Integer>, q.CrudRepository<Vet>';
+    const repo: DeadCodeNodeMeta = {
+      id: 'iface:vet:v1',
+      kind: 'interface',
+      name: 'VetRepository',
+      file_path: 'src/VetRepository.java',
+      signature: `zcg-java-declaration/v1\ncategory=ordinary-interface\nheader-bytes=${Buffer.byteLength(header)}\n\n${header}`,
+    };
+    const n = fn({ name: 'findAll', file_path: 'src/VetRepository.java', language: 'java', kind: 'method' });
+    const [v] = evalWith({
+      nodes: [n],
+      allNodes: [meta(n.id, n.kind, n.name, n.file_path), repo],
+      edges: [{ source: repo.id, target: n.id, kind: 'contains' }],
+    });
+    expect(v.evidence.via).toBe('spring-data-repository');
+    expect(v.evidence.superinterface).toBe('Repository');
+  });
+
   it('1-2-12-4: non-Spring-Data interface method stays on the interface-proxy fallback', () => {
     // A plain interface (no Spring Data marker superinterface) must still
     // hit the generic interface-proxy rule, NOT the spring-data branch.

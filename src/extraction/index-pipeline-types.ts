@@ -69,6 +69,15 @@ export interface IndexContext {
 
   /** Raw parse results keyed by file path (populated by ParseStage) */
   parseResults?: Map<string, ExtractionResult>;
+
+  /**
+   * When true, the pipeline is running inside the token-bound private V1
+   * replacement (CodeGraph.openForJavaFinalization → orchestrator.indexAll).
+   * RetryStage forwards this to the shared storeExtractionResult so the
+   * pre-delete Java predicate accepts writes in `required` state instead of
+   * rejecting them. Ordinary pipelines leave this undefined/false.
+   */
+  privateV1Replacement?: boolean;
 }
 
 // ─── Stage Result ─────────────────────────────────────────────────────────────

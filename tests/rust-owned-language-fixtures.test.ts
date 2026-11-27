@@ -691,6 +691,403 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
     });
   });
 
+  describe('Java overload call facts (roadmap 1-9-15)', () => {
+    it('persists one scoped ordinary-method call with receiver and literal argument evidence', () => {
+      const filePath = 'demo/Example.java';
+      const source = [
+        'package demo;',
+        '',
+        'class Owner { void find(String name, boolean active) {} }',
+        '',
+        'class Example {',
+        '  void run(Owner owner) {',
+        '    owner.find("café", true);',
+        '  }',
+        '}',
+        '',
+      ].join('\n');
+      writeFile(filePath, source);
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const caller = cg.getNodesByName('run').find(
+          (node) => node.filePath === filePath && node.kind === 'method',
+        );
+        const topLevelClass = cg.getNodesByName('Example').find(
+          (node) => node.filePath === filePath && node.kind === 'class',
+        );
+        expect(caller?.qualifiedName).toBe('demo::Example::run');
+        expect(topLevelClass?.qualifiedName).toBe('demo::Example');
+
+        const rows = db.prepare(
+          "SELECT metadata, line, col FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null; line: number; col: number }>;
+        expect(rows).toHaveLength(1);
+        expect(rows[0].line).toBe(7);
+        expect(rows[0].col).toBe(10);
+        expect(rows[0].metadata).not.toBeNull();
+
+        expect(JSON.parse(rows[0].metadata!)).toEqual({
+          zcgJavaCall: {
+            v: 1,
+            methodName: 'find',
+            occurrence: {
+              byteOffset: Buffer.byteLength(source.split('owner.find')[0], 'utf8'),
+            },
+            caller: {
+              nodeId: caller!.id,
+              category: 'ordinary-method',
+              lexicalDepth: 0,
+              topLevelClassNodeId: topLevelClass!.id,
+              topLevelClassCategory: 'ordinary-class',
+              topLevelClassQualifiedName: 'demo::Example',
+              packageName: 'demo',
+              complete: true,
+            },
+            receiver: {
+              kind: 'identifier',
+              name: 'owner',
+              declaredType: 'demo.Owner',
+              evidence: 'method-parameter',
+              complete: true,
+            },
+            arguments: [
+              {
+                kind: 'string-literal',
+                declaredType: 'java.lang.String',
+                complete: true,
+              },
+              {
+                kind: 'boolean-literal',
+                declaredType: 'boolean',
+                complete: true,
+              },
+            ],
+            complete: true,
+          },
+        });
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('persists constructor callers and unsupported arguments as explicitly incomplete', () => {
+      const filePath = 'demo/Example.java';
+      const source = [
+        'package demo;',
+        'class Owner {}',
+        'class Example {',
+        '  Example(Owner owner) {',
+        '    owner.find(new Owner(), false);',
+        '  }',
+        '}',
+        '',
+      ].join('\n');
+      writeFile(filePath, source);
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const constructor = cg.getNodesByName('Example').find(
+          (node) => node.filePath === filePath && node.kind === 'method',
+        );
+        expect(constructor?.signature).toBeUndefined();
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact).toMatchObject({
+          v: 1,
+          methodName: 'find',
+          occurrence: {
+            byteOffset: Buffer.byteLength(source.split('owner.find')[0], 'utf8'),
+          },
+          caller: {
+            nodeId: constructor!.id,
+            category: 'constructor',
+            lexicalDepth: 0,
+            complete: false,
+            reason: 'unsupported-caller-category',
+          },
+          receiver: {
+            kind: 'identifier',
+            name: 'owner',
+            complete: false,
+            reason: 'unsupported-caller-category',
+          },
+          arguments: [
+            {
+              kind: 'unsupported',
+              syntaxKind: 'object_creation_expression',
+              complete: false,
+              reason: 'unsupported-expression',
+            },
+            { kind: 'boolean-literal', declaredType: 'boolean', complete: true },
+          ],
+          complete: false,
+        });
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('uses a visible local declaration instead of a shadowed method parameter', () => {
+      const filePath = 'demo/Example.java';
+      const source = [
+        'package demo;',
+        'class Owner {}',
+        'class Example {',
+        '  void run(Owner owner) {',
+        '    String owner = "shadow";',
+        '    owner.find("name", true);',
+        '  }',
+        '}',
+        '',
+      ].join('\n');
+      writeFile(filePath, source);
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver).toEqual({
+          kind: 'identifier',
+          name: 'owner',
+          declaredType: 'java.lang.String',
+          evidence: 'local-variable',
+          complete: true,
+        });
+        expect(fact.complete).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('persists an explicit enclosing-class field as receiver evidence', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(filePath, [
+        'package demo;',
+        'class Owner {}',
+        'class Example {',
+        '  Owner owner;',
+        '  void run(String name) {',
+        '    this.owner.find(name, true);',
+        '  }',
+        '}',
+        '',
+      ].join('\n'));
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver).toEqual({
+          kind: 'field-access',
+          name: 'owner',
+          declaredType: 'demo.Owner',
+          evidence: 'class-field',
+          complete: true,
+        });
+        expect(fact.complete).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('keeps an ambiguous imported declared type incomplete', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(filePath, [
+        'package demo;',
+        'import p.String;',
+        'import q.String;',
+        'class Example {',
+        '  void run(String owner) {',
+        '    owner.find("name", true);',
+        '  }',
+        '}',
+        '',
+      ].join('\n'));
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver).toEqual({
+          kind: 'identifier',
+          name: 'owner',
+          complete: false,
+          reason: 'unknown-declared-type',
+        });
+        expect(fact.complete).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('binds an implicit receiver and retains each chained invocation occurrence', () => {
+      const filePath = 'demo/Example.java';
+      const source = [
+        'package demo;',
+        'class Example {',
+        '  void run(String name) {',
+        '    find(name, true).trim();',
+        '  }',
+        '}',
+        '',
+      ].join('\n');
+      writeFile(filePath, source);
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls' ORDER BY line, col",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(2);
+        const implicit = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(implicit.receiver).toEqual({
+          kind: 'implicit',
+          declaredType: 'demo.Example',
+          evidence: 'enclosing-class',
+          complete: true,
+        });
+        expect(implicit.complete).toBe(true);
+
+        const chained = JSON.parse(rows[1].metadata!).zcgJavaCall;
+        expect(chained.methodName).toBe('trim');
+        expect(chained.occurrence.byteOffset).toBe(
+          Buffer.byteLength(source.split('find(name, true).trim')[0], 'utf8'),
+        );
+        expect(chained.receiver).toMatchObject({
+          kind: 'unsupported',
+          syntaxKind: 'method_invocation',
+          complete: false,
+          reason: 'unsupported-expression',
+        });
+        expect(chained.complete).toBe(false);
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('keeps an explicit incomplete fact when an invocation exceeds the argument bound', () => {
+      const filePath = 'demo/Example.java';
+      const argumentsList = Array.from({ length: 65 }, () => 'true').join(', ');
+      writeFile(filePath, [
+        'package demo;',
+        'class Example {',
+        '  void run() {',
+        `    find(${argumentsList});`,
+        '  }',
+        '}',
+        '',
+      ].join('\n'));
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        expect(rows[0].metadata).not.toBeNull();
+        expect(Buffer.byteLength(rows[0].metadata!, 'utf8')).toBeLessThanOrEqual(16 * 1024);
+        expect(JSON.parse(rows[0].metadata!)).toEqual({
+          zcgJavaCall: {
+            v: 1,
+            methodName: 'find',
+            complete: false,
+            reason: 'argument-count',
+          },
+        });
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('replaces oversized call metadata with a bounded incomplete fact', () => {
+      const filePath = 'demo/Example.java';
+      const argumentsList = Array.from({ length: 64 }, () => 'true').join(', ');
+      writeFile(filePath, [
+        `package ${'p'.repeat(17000)};`,
+        'class Example {',
+        '  void run() {',
+        `    find(${argumentsList});`,
+        '  }',
+        '}',
+        '',
+      ].join('\n'));
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        expect(rows[0].metadata).not.toBeNull();
+        expect(Buffer.byteLength(rows[0].metadata!, 'utf8')).toBeLessThanOrEqual(16 * 1024);
+        expect(JSON.parse(rows[0].metadata!)).toEqual({
+          zcgJavaCall: {
+            v: 1,
+            methodName: 'find',
+            complete: false,
+            reason: 'metadata-bytes',
+          },
+        });
+      } finally {
+        cg.close();
+      }
+    });
+
+    it('resolves a bare receiver from an explicit enclosing-class field', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(filePath, [
+        'package demo;',
+        'class Owner {}',
+        'class Example {',
+        '  Owner owner;',
+        '  void run(String name) {',
+        '    owner.find(name, true);',
+        '  }',
+        '}',
+        '',
+      ].join('\n'));
+      indexWithRust();
+
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        expect(JSON.parse(rows[0].metadata!).zcgJavaCall.receiver).toEqual({
+          kind: 'identifier',
+          name: 'owner',
+          declaredType: 'demo.Owner',
+          evidence: 'class-field',
+          complete: true,
+        });
+      } finally {
+        cg.close();
+      }
+    });
+  });
+
   // Legacy L6467. The @interface DEFINITION half
   // (annotation_type_declaration -> interface + element method) is guarded
   // here; the USAGE half (@MyAnno on a class/field/method -> decorates ref) is

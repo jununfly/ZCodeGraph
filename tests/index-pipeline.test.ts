@@ -447,6 +447,90 @@ describe('RetryStage', () => {
     const result = await stage.execute(ctx);
     expect(result).toEqual({});
   });
+
+  it('1-9-15: passes ctx.privateV1Replacement through to the shared store', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const { DatabaseConnection, issueJavaFinalizationToken } = await import('../src/db');
+    const { QueryBuilder } = await import('../src/db/queries');
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-retry-private-'));
+    const dbPath = path.join(tempDir, 'retry-private.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)'
+    );
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_finalization_run', 'run-retry', 1);
+    metadata.run('java_finalization_pass', 'pass-retry', 1);
+    setup.close();
+
+    const opened = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      issueJavaFinalizationToken('run-retry', 'pass-retry'),
+    );
+    try {
+      const raw = opened.getDb();
+      const queries = new QueryBuilder(raw);
+      // Create a real file that RetryStage can read
+      const javaFile = path.join(tempDir, 'Owner.java');
+      fs.writeFileSync(javaFile, 'class Owner {}\n');
+
+      const ctx = makeContext({
+        rootDir: tempDir,
+        queries,
+        useWorker: true,
+        privateV1Replacement: true,
+        errors: [
+          { message: 'Worker exited', severity: 'error', code: 'parse_error', filePath: 'Owner.java' },
+        ],
+        filesIndexed: 0,
+        filesErrored: 1,
+        filesSkipped: 0,
+        totalNodes: 0,
+        totalEdges: 0,
+      });
+
+      // Spy on extractFromSource to return a valid result with one node
+      const treeSitter = await import('../src/extraction/tree-sitter');
+      const extractSpy = vi.spyOn(treeSitter, 'extractFromSource').mockReturnValue({
+        nodes: [{
+          id: 'Owner.java:Owner',
+          kind: 'class',
+          name: 'Owner',
+          filePath: 'Owner.java',
+          language: 'java',
+          startLine: 1,
+          endLine: 1,
+          startByte: 0,
+          endByte: 15,
+          signature: 'class Owner {}',
+        }],
+        edges: [],
+        unresolvedReferences: [],
+        errors: [],
+      });
+
+      // Dynamic import so RetryStage picks up the spied extractFromSource
+      const { RetryStage } = await import('../src/extraction/index-stages');
+
+      try {
+        const stage = new RetryStage();
+        const result = await stage.execute(ctx);
+        expect(result).toEqual({});
+        // If privateV1Replacement is passed through, the shared store should
+        // allow the Java write even though state is 'required'.
+        const persisted = raw.prepare('SELECT path, language FROM files WHERE path = ?').get('Owner.java');
+        expect(persisted).toEqual({ path: 'Owner.java', language: 'java' });
+      } finally {
+        extractSpy.mockRestore();
+      }
+    } finally {
+      opened.close();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // ===========================================================================
@@ -457,6 +541,91 @@ describe('storeExtractionResult', () => {
   it('is exported and callable', async () => {
     const { storeExtractionResult } = await import('../src/extraction/index-stages');
     expect(typeof storeExtractionResult).toBe('function');
+  });
+
+  it('1-9-15: rejects a Java mutation through the shared store before deleteFile()', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const { storeExtractionResult } = await import('../src/extraction/index-stages');
+    const { DatabaseConnection } = await import('../src/db');
+    const { QueryBuilder } = await import('../src/db/queries');
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-shared-store-'));
+    const dbPath = path.join(tempDir, 'shared-store.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)'
+    );
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_state', 'complete', 1);
+    setup.getDb().prepare(
+      'INSERT INTO files(path, content_hash, language, size, modified_at, indexed_at, node_count) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run('Owner.java', 'hash-old', 'java', 18, 1, 1, 1);
+    try {
+      const queries = new QueryBuilder(setup.getDb());
+      const before = setup.getDb().prepare('SELECT * FROM files WHERE path = ?').get('Owner.java');
+      expect(before).not.toBeUndefined();
+      const stats = fs.statSync(__filename);
+      expect(() => storeExtractionResult(
+        queries,
+        tempDir,
+        'Owner.java',
+        'class Owner { void changed() {} }\n',
+        'java',
+        stats,
+        { nodes: [], edges: [], unresolvedReferences: [], errors: [] },
+      )).toThrow(/java-facts-rebuild-required/i);
+      const after = setup.getDb().prepare('SELECT * FROM files WHERE path = ?').get('Owner.java');
+      expect(after).toEqual(before);
+    } finally {
+      setup.close();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('1-9-15: permits a Java mutation through the shared store inside private V1 replacement', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const { storeExtractionResult } = await import('../src/extraction/index-stages');
+    const { DatabaseConnection, issueJavaFinalizationToken } = await import('../src/db');
+    const { QueryBuilder } = await import('../src/db/queries');
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zcodegraph-shared-store-private-'));
+    const dbPath = path.join(tempDir, 'shared-store-private.db');
+    const setup = DatabaseConnection.initialize(dbPath);
+    const metadata = setup.getDb().prepare(
+      'INSERT INTO project_metadata(key, value, updated_at) VALUES (?, ?, ?)'
+    );
+    metadata.run('java_fact_generation', 'p0b-java-v1', 1);
+    metadata.run('java_finalization_state', 'required', 1);
+    metadata.run('java_finalization_run', 'run-shared', 1);
+    metadata.run('java_finalization_pass', 'pass-shared', 1);
+    setup.close();
+
+    const opened = DatabaseConnection.openForJavaFinalization(
+      dbPath,
+      issueJavaFinalizationToken('run-shared', 'pass-shared'),
+    );
+    try {
+      const raw = opened.getDb();
+      const queries = new QueryBuilder(raw);
+      const stats = fs.statSync(__filename);
+      expect(() => storeExtractionResult(
+        queries,
+        tempDir,
+        'Owner.java',
+        'class Owner {}\n',
+        'java',
+        stats,
+        { nodes: [], edges: [], unresolvedReferences: [], errors: [] },
+        { privateV1Replacement: true },
+      )).not.toThrow();
+      const persisted = raw.prepare('SELECT path, language FROM files WHERE path = ?').get('Owner.java');
+      expect(persisted).toEqual({ path: 'Owner.java', language: 'java' });
+    } finally {
+      opened.close();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 
