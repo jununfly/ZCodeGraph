@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { median, summarize, createArms, verifyArmProvenance } from './java-overload-paired-diagnostics.mjs';
+import { percentChange, summarize, createArms, verifyArmProvenance } from './java-overload-paired-diagnostics.mjs';
 
 const BEFORE = '53474b753c60ad459151fef45fd257fba6f809b2';
 const AFTER = '827bfa18d57e269c431aa44835dd399a95afef34';
@@ -16,6 +16,12 @@ function revisionMarker(root, name, revision) {
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(path.join(directory, name), `${revision}\n`);
 }
+
+test('reports observed medians as one-decimal percentage changes', () => {
+  assert.equal(percentChange(3466.5, 3213.4), 7.9);
+  assert.equal(percentChange(245.7, 246.9), -0.5);
+  assert.equal(percentChange(3233, 3213.4), 0.6);
+});
 
 test('summarizes two nine-run Explore queries with the architecture metric aggregation', () => {
   const query0 = [200, 210, 220, 230, 240, 250, 260, 270, 280];

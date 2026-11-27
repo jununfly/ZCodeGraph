@@ -68,8 +68,11 @@ function roundMs(value) {
   return Math.round(value * 10) / 10;
 }
 
-function roundPercent(value) {
-  return Math.round(value * 1000) / 10;
+export function percentChange(actual, baseline) {
+  if (!Number.isFinite(actual) || !Number.isFinite(baseline) || baseline <= 0) {
+    throw new Error('expected finite measurements and a positive baseline');
+  }
+  return Math.round(((actual / baseline - 1) * 1000)) / 10;
 }
 
 export function summarize(values) {
@@ -293,9 +296,9 @@ function main() {
     };
   }
   report.summary.comparisons = {
-    afterVsBeforeIndexPercent: roundPercent((report.summary.after.index.medianMs / report.summary.before.index.medianMs - 1) * 100),
-    afterVsBeforeExplorePercent: roundPercent((report.summary.after.explore.medianMs / report.summary.before.explore.medianMs - 1) * 100),
-    afterTsBeforeCoreVsBeforeIndexPercent: roundPercent((report.summary.afterTsBeforeCore.index.medianMs / report.summary.before.index.medianMs - 1) * 100),
+    afterVsBeforeIndexPercent: percentChange(report.summary.after.index.medianMs, report.summary.before.index.medianMs),
+    afterVsBeforeExplorePercent: percentChange(report.summary.after.explore.medianMs, report.summary.before.explore.medianMs),
+    afterTsBeforeCoreVsBeforeIndexPercent: percentChange(report.summary.afterTsBeforeCore.index.medianMs, report.summary.before.index.medianMs),
   };
   for (let queryIndex = 0; queryIndex < QUERIES.length; queryIndex++) {
     const hashes = new Set(report.explore.filter((row) => row.queryIndex === queryIndex).map((row) => row.stdoutSha256));

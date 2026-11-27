@@ -2625,6 +2625,11 @@
           "q": "Ubuntu 同 runner 三臂九轮原始样本给出何种性能归因？",
           "answer": "Run 46007995076 已产生完整原始证据：27 次正式 index、54 次 Explore、3 次预热；每个正式样本均成功、77/1138/1963、零 skipped/errors、OS lease not-locked，index/lease native 路径与 SHA 正确，交叉组确为 candidate TS+baseline native，两个 Explore query 的跨 arm 输出哈希一致。原始 JSON SHA=2a5575ec6f07c1bd88bf423e536c43ee9d427b548184e04efc221b133a380739。按 Architecture 的每 query 中位数再跨 query 中位数重算：before index 3222.6ms、after 3491.6ms（+8.3%）、candidate TS+baseline native 3240.0ms（+0.5%）；Java AST 318→549ms（+231ms），Java parse 374→601ms（+227ms）；Explore 244.3→244.8ms（+0.2%）。支持本固定小语料、默认 overload 关闭时主要可测增量来自 native Java extraction/metadata，不能外推为所有平台、所有项目或精确 resolver 零成本，也不替代正式 CI verdict、不改阈值/基线。",
           "note": "原始 workflow 在所有样本落盘后因其 Explore 汇总拒绝 18 个偶数样本而标 failure。为不重跑或丢弃有效索引，独立保留原始 JSON 并用已测汇总函数重算；诊断器改为与正式 perf-baseline 相同的逐查询再跨查询聚合，提交后仅作相同协议确认运行。1-9-15-4 仍 pending，不进入 1-9-15-5/6，不自动实施优化。"
+        },
+        {
+          "q": "最终 Ubuntu 确认运行是否复现首轮归因，报告百分比错误如何处理？",
+          "answer": "Run 46009424543（9774e9562fb7da56d67480bb60ec58e70bbe21f3）workflow success，GitHub Actions runner 1000009244，Node v22.23.5，linux-x64。独立复核原始 JSON SHA=cf016e9c95d833fb5fa8c6fa23cec463e0854d8231f8d6fa5c8cf2234c31f081：27 个正式 index、54 个 Explore、3 个预热全部有效，完整 77/1138/1963 图，零 skipped/errors、全部 lease not-locked、index/lease native 路径及交叉 native SHA 正确、两查询输出跨 arm 一致。before index=3213.4ms、after=3466.5ms，标准 (after/before-1)*100 为 +7.9%；cross=3233.0ms，为 +0.6%；Explore before=246.9ms、after=245.7ms，为 -0.5%。Java AST 317→547ms（+230ms）、parse 374→600ms（+226ms）。复现首轮 +8.3%/+0.5%/+0.2% 的归因；两轮均低于本诊断参考的 index 15% 和 explore 20% 阈值，但不是正式 Architecture CI verdict。",
+          "note": "原成功 workflow 的 summary.comparisons 在 percent 已乘 100 后又 roundPercent 乘 1000/10，导致 787.6%/-48.6%/61.0% 十倍显示错误；该字段不得引用，原始 rows 和 medians 不受影响，已由独立 verified-summary.json 保存修正。新增导出 percentChange 红绿回归，统一三处换算；仅提交诊断器、测试和 roadmap，并最后触发同协议确认，不改采样协议、阈值、产品实现、正式 CI 或 main。A 诊断至此可结束，1-9-15-4 保持 pending，不自动进入优化或后续节点。"
         }
       ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
@@ -2668,7 +2673,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-27 21:42:04",
+    "updated": "2026-11-27 22:24:37",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

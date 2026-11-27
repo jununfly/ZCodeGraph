@@ -750,7 +750,7 @@ durable-citation: forbidden
 promote-via: ADR|design|contract|runtime-evidence
 -->
 
-> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-27 21:42:04
+> 数据文件: `semantic-retrieval-roadmap.json` | 最后更新: 2026-11-27 22:24:37
 
 [~][X+] 1. 语义检索独立项目：真实基准、效果验证与证据门控集成
     ├── [ ][X+] 1-8. 跨线治理与执行前置
