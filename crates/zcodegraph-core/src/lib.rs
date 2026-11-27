@@ -10521,6 +10521,7 @@ fn extract_java_symbols(
     let package_name = package.as_ref().map(|(name, _)| name.clone());
     let imports = java_explicit_imports(root, source)?;
     let declared_types = java_declared_types(root, source)?;
+    let annotation_types = java_declared_annotation_types(root, source)?;
     let mut base_from_node_id: Cow<'_, str> = Cow::Borrowed(file_node_id);
     let mut qualified_base: Cow<'_, str> = Cow::Borrowed(relative_path);
     if let Some((package_name, package_node)) = package {
@@ -10561,6 +10562,7 @@ fn extract_java_symbols(
         package_name.as_deref(),
         &imports,
         &declared_types,
+        &annotation_types,
         nodes,
         edges,
         unresolved_refs,
@@ -10579,6 +10581,7 @@ fn visit_java_node(
     package_name: Option<&str>,
     imports: &BTreeMap<String, String>,
     declared_types: &BTreeSet<String>,
+    annotation_types: &BTreeSet<String>,
     nodes: &mut Vec<ExtractedNode>,
     edges: &mut Vec<ExtractedEdge>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
@@ -10701,6 +10704,7 @@ fn visit_java_node(
         package_name,
         imports,
         declared_types,
+        annotation_types,
         unresolved_refs,
     )?;
 
@@ -10717,6 +10721,7 @@ fn visit_java_node(
                 package_name,
                 imports,
                 declared_types,
+                annotation_types,
                 nodes,
                 edges,
                 unresolved_refs,
@@ -11134,6 +11139,27 @@ fn java_declared_types(
     Ok(declared_types)
 }
 
+// (neg) annotation-typed receiver: collect the simple names of all
+// `annotation_type_declaration`s in the file so the receiver classifier can
+// refuse to emit a complete fact for them. Annotations are Java types but
+// they cannot be the receiver of an ordinary method call (`Marker m;
+// m.toString()` is not legal Java), so the v1 envelope marks them
+// explicitly incomplete rather than silently mis-typing them.
+fn java_declared_annotation_types(
+    root: SyntaxNode,
+    source: &[u8],
+) -> Result<BTreeSet<String>, Box<dyn std::error::Error>> {
+    let mut annotations = BTreeSet::new();
+    for child in root.named_children(&mut root.walk()) {
+        if child.kind() == "annotation_type_declaration" {
+            if let Some(name) = child.child_by_field_name("name") {
+                annotations.insert(name.utf8_text(source)?.to_string());
+            }
+        }
+    }
+    Ok(annotations)
+}
+
 fn java_ancestor<'a>(node: SyntaxNode<'a>, kinds: &[&str]) -> Option<SyntaxNode<'a>> {
     let mut ancestor = node.parent();
     while let Some(current) = ancestor {
@@ -11143,6 +11169,47 @@ fn java_ancestor<'a>(node: SyntaxNode<'a>, kinds: &[&str]) -> Option<SyntaxNode<
         ancestor = current.parent();
     }
     None
+}
+
+// (1) lexical depth: number of type declarations (class / interface / enum /
+// annotation / record) that enclose the given node, EXCLUDING the top-level
+// type. So `Outer.Inner.run` reports lexicalDepth = 1, `Outer.run` reports 0.
+// Anonymous class bodies (`new T() { ... }`) count as 1 extra level because
+// they introduce a fresh lexical scope distinct from the enclosing method.
+fn java_lexical_depth(node: SyntaxNode) -> u32 {
+    let mut depth: u32 = 0;
+    let mut ancestor = node.parent();
+    while let Some(current) = ancestor {
+        match current.kind() {
+            "class_declaration"
+            | "interface_declaration"
+            | "enum_declaration"
+            | "annotation_type_declaration"
+            | "record_declaration"
+            | "local_class_declaration" => {
+                // Top-level type: its parent is `program`. We exclude it.
+                let is_top_level = current
+                    .parent()
+                    .is_some_and(|parent| parent.kind() == "program");
+                if !is_top_level {
+                    depth = depth.saturating_add(1);
+                }
+            }
+            "object_creation_expression" => {
+                // `new T() { ... }` opens an anonymous-class body. We count it
+                // as a lexical level only if it actually has a body.
+                if current
+                    .named_children(&mut current.walk())
+                    .any(|child| child.kind() == "class_body")
+                {
+                    depth = depth.saturating_add(1);
+                }
+            }
+            _ => {}
+        }
+        ancestor = current.parent();
+    }
+    depth
 }
 
 fn java_top_level_ordinary_class(node: SyntaxNode) -> Option<SyntaxNode> {
@@ -11156,20 +11223,43 @@ fn java_top_level_ordinary_class(node: SyntaxNode) -> Option<SyntaxNode> {
                 | "enum_declaration"
                 | "local_class_declaration"
         ) {
+            // A method that is nested inside an interface/annotation/enum/
+            // local-class body has no enclosing top-level ORDINARY class; we
+            // surface that as None and the caller metadata marks itself
+            // incomplete with reason=unsupported-caller-category.
             return None;
         }
         if current.kind() == "class_declaration" {
-            if current
-                .parent()
-                .is_some_and(|parent| parent.kind() != "program")
-            {
-                return None;
+            // (1) nested scope: a nested ordinary class (e.g. Outer.Inner)
+            // still belongs to the enclosing TOP-LEVEL ordinary class. Walk
+            // past it instead of bailing out. We only refuse if the parent
+            // is something other than `program` or `class_body` (i.e. the
+            // class is genuinely in a position we cannot attribute, like a
+            // method-local class body).
+            if let Some(parent) = current.parent() {
+                match parent.kind() {
+                    "program" | "class_body" => {
+                        top_level = Some(current);
+                    }
+                    _ => return None,
+                }
             }
-            top_level = Some(current);
         }
         ancestor = current.parent();
     }
-    top_level
+    // After walking the chain, top_level holds the OUTERMOST class_declaration
+    // whose parent is `program`. If we never reached the program root, return
+    // None to keep the v1 envelope conservative.
+    match top_level {
+        Some(class)
+            if class
+                .parent()
+                .is_some_and(|parent| parent.kind() == "program") =>
+        {
+            Some(class)
+        }
+        _ => None,
+    }
 }
 
 fn java_named_symbol_id(
@@ -11201,25 +11291,34 @@ fn java_declared_type(
     if PRIMITIVES.contains(&raw) {
         return Some(raw.to_string());
     }
-    if raw.contains('.') {
-        return Some(raw.to_string());
+    // (8a) generic erasure: strip `<...>` so `List<String>` resolves to the
+    // erased type `List` for import / declared-type lookup. Arrays (`Foo[]`)
+    // are erased to the element type for the same lookup purpose.
+    let erased = raw.split_once('<').map(|(left, _)| left).unwrap_or(raw);
+    let erased = erased.trim().trim_end_matches("[]").trim();
+    if erased.contains('.') {
+        return Some(erased.to_string());
     }
-    if let Some(imported) = imports.get(raw) {
+    if let Some(imported) = imports.get(erased) {
         return (!imported.is_empty()).then(|| imported.clone());
     }
-    if declared_types.contains(raw) {
+    // (7) JDK shadowing: a user-declared type with the same simple name as a
+    // JDK alias (e.g. demo.String vs java.lang.String) MUST win within the
+    // current file's top-level declarations. The declared_types check
+    // therefore runs BEFORE the JDK alias table. Cross-file same-package
+    // shadowing (demo/String.java vs java.lang.String) is deferred to Task
+    // #3 resolver — v1 envelope is AST-only and cannot see other files.
+    if declared_types.contains(erased) {
         return Some(
-            package_name.map_or_else(|| raw.to_string(), |package| format!("{package}.{raw}")),
+            package_name
+                .map_or_else(|| erased.to_string(), |package| format!("{package}.{erased}")),
         );
     }
-    if matches!(raw, "String" | "Integer") {
-        return Some(format!("java.lang.{raw}"));
+    if matches!(erased, "String" | "Integer") {
+        return Some(format!("java.lang.{erased}"));
     }
     if let Some(package_name) = package_name {
-        return Some(format!("{package_name}.{raw}"));
-    }
-    if matches!(raw, "String" | "Integer") {
-        return Some(format!("java.lang.{raw}"));
+        return Some(format!("{package_name}.{erased}"));
     }
     None
 }
@@ -11319,6 +11418,80 @@ fn java_class_field_declared_type(
     Ok(None)
 }
 
+// (neg) wrap a `complete: true` receiver JSON with an annotation guard. If
+// the declaredType's trailing simple name matches a file-local
+// `annotation_type_declaration`, downgrade to `complete: false` with
+// reason=annotation-typed-receiver instead of silently reporting a complete
+// fact for an illegal Java receiver.
+// (3) reassignment detection: walk the caller method body looking for an
+// `assignment_expression` whose LEFT side is an identifier matching `name`
+// and whose start_byte is strictly before `before_byte`. If found, the
+// receiver has been reassigned inside the method body and the v1 envelope
+// must NOT report the original method-parameter evidence — even though the
+// declared type at the call site is still the parameter's declared type
+// (statically the reassignment cannot widen the type beyond the declared
+// one). We mark evidence as "reassigned-parameter" to keep the fact
+// explainable.
+fn java_is_reassigned_identifier(
+    caller: SyntaxNode,
+    name: &str,
+    source: &[u8],
+    before_byte: usize,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let Some(body) = caller.child_by_field_name("body") else {
+        return Ok(false);
+    };
+    let mut found = false;
+    let mut stack: Vec<SyntaxNode> = vec![body];
+    while let Some(current) = stack.pop() {
+        if current.kind() == "assignment_expression" && current.start_byte() < before_byte {
+            if let Some(left) = current.child_by_field_name("left") {
+                if left.kind() == "identifier" && left.utf8_text(source)? == name {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        let mut cursor = current.walk();
+        for child in current.named_children(&mut cursor) {
+            // Don't descend into nested method/constructor/lambda bodies: a
+            // reassignment inside a different lexical method is not visible
+            // at this call site.
+            if matches!(
+                child.kind(),
+                "method_declaration" | "constructor_declaration" | "lambda_expression"
+            ) {
+                continue;
+            }
+            stack.push(child);
+        }
+    }
+    Ok(found)
+}
+
+fn java_guard_annotation_receiver(
+    fact: serde_json::Value,
+    annotation_types: &BTreeSet<String>,
+) -> serde_json::Value {
+    if fact.get("complete").and_then(serde_json::Value::as_bool) != Some(true) {
+        return fact;
+    }
+    let Some(declared) = fact
+        .get("declaredType")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return fact;
+    };
+    let simple = declared.rsplit('.').next().unwrap_or(declared);
+    if !annotation_types.contains(simple) {
+        return fact;
+    }
+    let mut out = fact;
+    out["complete"] = serde_json::Value::Bool(false);
+    out["reason"] = serde_json::Value::String("annotation-typed-receiver".to_string());
+    out
+}
+
 fn java_expression_fact(
     expression: Option<SyntaxNode>,
     caller: SyntaxNode,
@@ -11326,6 +11499,7 @@ fn java_expression_fact(
     package_name: Option<&str>,
     imports: &BTreeMap<String, String>,
     declared_types: &BTreeSet<String>,
+    annotation_types: &BTreeSet<String>,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let Some(expression) = expression else {
         if let Some(class) = java_top_level_ordinary_class(caller) {
@@ -11375,13 +11549,16 @@ fn java_expression_fact(
                 declared_types,
             )? {
                 return Ok(if let Some(declared_type) = declared_type {
-                    serde_json::json!({
-                        "kind": "identifier",
-                        "name": name,
-                        "declaredType": declared_type,
-                        "evidence": "local-variable",
-                        "complete": true,
-                    })
+                    java_guard_annotation_receiver(
+                        serde_json::json!({
+                            "kind": "identifier",
+                            "name": name,
+                            "declaredType": declared_type,
+                            "evidence": "local-variable",
+                            "complete": true,
+                        }),
+                        annotation_types,
+                    )
                 } else {
                     serde_json::json!({
                         "kind": "identifier",
@@ -11413,14 +11590,32 @@ fn java_expression_fact(
                         .and_then(|raw| {
                             java_declared_type(raw, package_name, imports, declared_types)
                         });
+                    // (3) reassignment: even when the static declared type
+                    // stays the same, the evidence must change if the
+                    // parameter has been re-bound by an assignment expression
+                    // earlier in the same method body.
+                    let reassigned = java_is_reassigned_identifier(
+                        caller,
+                        name,
+                        source,
+                        expression.start_byte(),
+                    )?;
+                    let evidence = if reassigned {
+                        "reassigned-parameter"
+                    } else {
+                        "method-parameter"
+                    };
                     return Ok(if let Some(declared_type) = declared_type {
-                        serde_json::json!({
-                            "kind": "identifier",
-                            "name": name,
-                            "declaredType": declared_type,
-                            "evidence": "method-parameter",
-                            "complete": true,
-                        })
+                        java_guard_annotation_receiver(
+                            serde_json::json!({
+                                "kind": "identifier",
+                                "name": name,
+                                "declaredType": declared_type,
+                                "evidence": evidence,
+                                "complete": true,
+                            }),
+                            annotation_types,
+                        )
                     } else {
                         serde_json::json!({
                             "kind": "identifier",
@@ -11440,13 +11635,16 @@ fn java_expression_fact(
                 declared_types,
             )? {
                 return Ok(if let Some(declared_type) = declared_type {
-                    serde_json::json!({
-                        "kind": "identifier",
-                        "name": name,
-                        "declaredType": declared_type,
-                        "evidence": "class-field",
-                        "complete": true,
-                    })
+                    java_guard_annotation_receiver(
+                        serde_json::json!({
+                            "kind": "identifier",
+                            "name": name,
+                            "declaredType": declared_type,
+                            "evidence": "class-field",
+                            "complete": true,
+                        }),
+                        annotation_types,
+                    )
                 } else {
                     serde_json::json!({
                         "kind": "identifier",
@@ -11521,6 +11719,50 @@ fn java_expression_fact(
             "declaredType": "boolean",
             "complete": true,
         })),
+        // (4) flow-sensitive cast narrowing: `((B) owner).find()` produces a
+        // cast_expression around the receiver. The declared type at the cast
+        // site is the TARGET type of the cast, regardless of the underlying
+        // identifier's declared type. v1 envelope records the cast target as
+        // the declaredType with evidence=cast-narrowing.
+        "cast_expression" => {
+            let Some(type_node) = expression.child_by_field_name("type") else {
+                return Ok(serde_json::json!({
+                    "kind": "cast",
+                    "complete": false,
+                    "reason": "cast-missing-type",
+                }));
+            };
+            let raw = type_node.utf8_text(source)?;
+            let declared_type = java_declared_type(raw, package_name, imports, declared_types);
+            Ok(if let Some(declared_type) = declared_type {
+                serde_json::json!({
+                    "kind": "cast",
+                    "declaredType": declared_type,
+                    "evidence": "cast-narrowing",
+                    "complete": true,
+                })
+            } else {
+                serde_json::json!({
+                    "kind": "cast",
+                    "complete": false,
+                    "reason": "unknown-declared-type",
+                })
+            })
+        }
+        // (4) parenthesized expression: unwrap and recurse so `((B) owner)`
+        // becomes a cast_expression fact rather than unsupported.
+        "parenthesized_expression" => {
+            let inner = expression.named_child(0);
+            java_expression_fact(
+                inner,
+                caller,
+                source,
+                package_name,
+                imports,
+                declared_types,
+                annotation_types,
+            )
+        }
         _ => Ok(serde_json::json!({
             "kind": "unsupported",
             "syntaxKind": expression.kind(),
@@ -11538,6 +11780,7 @@ fn java_call_fact_metadata(
     package_name: Option<&str>,
     imports: &BTreeMap<String, String>,
     declared_types: &BTreeSet<String>,
+    annotation_types: &BTreeSet<String>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let caller = java_ancestor(
         invocation,
@@ -11558,10 +11801,11 @@ fn java_call_fact_metadata(
             .transpose()?
             .unwrap_or("");
         let qualified_name = format!("{}::{}", package_name.unwrap_or(relative_path), class_name,);
+        let lexical_depth = java_lexical_depth(caller);
         serde_json::json!({
             "nodeId": java_named_symbol_id(relative_path, "method", caller_name, caller),
             "category": "ordinary-method",
-            "lexicalDepth": 0,
+            "lexicalDepth": lexical_depth,
             "topLevelClassNodeId": java_named_symbol_id(relative_path, "class", class_name, class),
             "topLevelClassCategory": "ordinary-class",
             "topLevelClassQualifiedName": qualified_name,
@@ -11569,13 +11813,14 @@ fn java_call_fact_metadata(
             "complete": true,
         })
     } else {
+        let lexical_depth = java_lexical_depth(caller.unwrap_or(invocation));
         let mut caller_fact = serde_json::json!({
             "category": match caller.map(|node| node.kind()) {
                 Some("constructor_declaration") => "constructor",
                 Some("method_declaration") => "ordinary-method",
                 _ => "unsupported",
             },
-            "lexicalDepth": 0,
+            "lexicalDepth": lexical_depth,
             "complete": false,
             "reason": "unsupported-caller-category",
         });
@@ -11598,6 +11843,7 @@ fn java_call_fact_metadata(
         package_name,
         imports,
         declared_types,
+        annotation_types,
     )?;
     let receiver = if eligible_caller.is_some() {
         receiver
@@ -11625,6 +11871,7 @@ fn java_call_fact_metadata(
                 package_name,
                 imports,
                 declared_types,
+                annotation_types,
             )?);
         }
     }
@@ -11686,6 +11933,7 @@ fn extract_java_statement_refs(
     package_name: Option<&str>,
     imports: &BTreeMap<String, String>,
     declared_types: &BTreeSet<String>,
+    annotation_types: &BTreeSet<String>,
     unresolved_refs: &mut Vec<UnresolvedRef>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match node.kind() {
@@ -11702,6 +11950,7 @@ fn extract_java_statement_refs(
                 package_name,
                 imports,
                 declared_types,
+                annotation_types,
             )?;
             push_ref_with_metadata(
                 unresolved_refs,

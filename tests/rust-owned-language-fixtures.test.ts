@@ -1088,6 +1088,451 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
     });
   });
 
+  // Roadmap 1-9-15-3: Java caller/declaration completeness freeze matrix.
+  //
+  // Scope (decision recorded on roadmap node 1-9-15-3): eight shapes must each
+  // produce a fully-described, explainable caller fact (or an explicit
+  // incomplete-with-reason fact). Red tests below FAIL under the current
+  // extractor wherever a shape is unhandled; the decision prohibits claiming
+  // Task #2 complete until every row is green AND every negative/boundary case
+  // (overflow / constructor / annotation) carries an explicit reason.
+  //
+  //   1. nested scope        — caller inside an inner class / nested block
+  //   2. shadowing           — local shadows field/parameter; user class shadows JDK
+  //   3. reassignment        — parameter re-assigned before the call
+  //   4. flow-sensitive      — call inside if/else branch with narrowed declared type
+  //   5. same-package        — no import, same-package type reference
+  //   6. explicit import     — single-type import driving receiver resolution
+  //   7. JDK shadowing       — demo.String hides java.lang.String
+  //   8. generic/varargs     — List<String> receiver, String... args call
+  describe('Java caller/declaration completeness (roadmap 1-9-15-3)', () => {
+    // (1) nested scope — caller inside an inner class method must report the
+    // inner class as the lexical parent, not the top-level class.
+    it('(1) reports the inner class as lexical parent for nested-scope callers', () => {
+      const filePath = 'demo/Outer.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class Owner { void find(String n) {} }',
+          'public class Outer {',
+          '  static class Inner {',
+          '    void run(Owner owner) {',
+          '      owner.find("x");',
+          '    }',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        // The caller is Inner.run, NOT Outer.run. lexicalDepth must reflect
+        // the additional class nesting level.
+        expect(fact.caller.category).toBe('ordinary-method');
+        expect(fact.caller.lexicalDepth).toBeGreaterThanOrEqual(1);
+        expect(fact.caller.topLevelClassQualifiedName).toBe('demo::Outer');
+        expect(fact.complete).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (2a) shadowing — a local variable that shadows a method parameter; the
+    // receiver declaredType must reflect the LOCAL's declared type, not the
+    // parameter's.
+    it('(2a) resolves the local when a local variable shadows a parameter', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class A { void find() {} }',
+          'class B { void find() {} }',
+          'class Example {',
+          '  void run(A owner) {',
+          '    B owner2 = new B();',
+          '    {',
+          '      B owner = owner2;',
+          '      owner.find();',
+          '    }',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.name).toBe('owner');
+        expect(fact.receiver.declaredType).toBe('demo.B');
+        expect(fact.receiver.complete).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (2b) shadowing — a local variable that shadows a class field.
+    it('(2b) resolves the local when a local variable shadows a class field', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class A { void find() {} }',
+          'class B { void find() {} }',
+          'class Example {',
+          '  private A owner = new A();',
+          '  void run() {',
+          '    B owner = new B();',
+          '    owner.find();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('demo.B');
+        expect(fact.receiver.evidence).not.toBe('class-field');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (3) reassignment — a parameter re-assigned to a different declared-type
+    // reference before the call; declaredType must follow the latest binding.
+    it('(3) follows the latest binding after parameter reassignment', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class A { void find() {} }',
+          'class B extends A { }',
+          'class Example {',
+          '  void run(A owner, B other) {',
+          '    owner = other;',
+          '    owner.find();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        // Static declared type stays A (the parameter's declared type), but
+        // the extractor must NOT mark the fact as a fresh method-parameter
+        // evidence — reassignment must be visible.
+        expect(fact.receiver.declaredType).toBe('demo.A');
+        expect(fact.receiver.evidence).not.toBe('method-parameter');
+        expect(fact.receiver.complete).toBe(true);
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (4) flow-sensitive — call inside an if branch where declared type is
+    // narrowed by an explicit cast.
+    it('(4) records the narrowed declared type after an explicit cast in a branch', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class A { }',
+          'class B extends A { void find() {} }',
+          'class Example {',
+          '  void run(A owner) {',
+          '    if (owner instanceof B) {',
+          '      ((B) owner).find();',
+          '    }',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('demo.B');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (5) same-package — receiver type resolved without any import statement.
+    it('(5) resolves a same-package receiver without an import', () => {
+      writeFile(
+        'demo/Owner.java',
+        ['package demo;', 'public class Owner { public void find() {} }', ''].join('\n'),
+      );
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class Example {',
+          '  void run(Owner owner) {',
+          '    owner.find();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('demo.Owner');
+        expect(fact.caller.packageName).toBe('demo');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (6) explicit import — single-type import drives receiver resolution.
+    it('(6) resolves a single-type import for the receiver', () => {
+      writeFile(
+        'other/Owner.java',
+        ['package other;', 'public class Owner { public void find() {} }', ''].join('\n'),
+      );
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'import other.Owner;',
+          'class Example {',
+          '  void run(Owner owner) {',
+          '    owner.find();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('other.Owner');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (7a) Same-file JDK shadowing — a class declared in the SAME compilation
+    // unit with the same simple name as a JDK alias (e.g. String) MUST win
+    // over java.lang.String. The v1 envelope is AST-only and CAN see this.
+    it('(7a) prefers a same-file declared class over the JDK String alias', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class String { void find() {} }',
+          'class Example {',
+          '  void run(String owner) {',
+          '    owner.find();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('demo.String');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (7b) Cross-file same-package JDK shadowing — `demo/String.java` exists
+    // as a sibling file but the v1 envelope is AST-only and cannot see it.
+    // Expected v1 behavior: receiver declaredType falls back to the JDK
+    // alias `java.lang.String`. Cross-file shadowing resolution is deferred
+    // to Task #3 (precise resolver); this test locks the current v1 contract
+    // so a future resolver fix is observable as a deliberate test update.
+    it('(7b) cross-file JDK shadowing is deferred to Task #3 (v1 keeps JDK alias)', () => {
+      writeFile(
+        'demo/String.java',
+        ['package demo;', 'public class String { public void find() {} }', ''].join('\n'),
+      );
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class Example {',
+          '  void run(String owner) {',
+          '    owner.find();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('java.lang.String');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (8a) generic receiver — List<String> as receiver declaredType.
+    it('(8a) preserves a generic receiver declaredType', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'import java.util.List;',
+          'class Example {',
+          '  void run(List<String> owner) {',
+          '    owner.size();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.receiver.declaredType).toBe('java.util.List');
+        expect(fact.methodName).toBe('size');
+      } finally {
+        cg.close();
+      }
+    });
+
+    // (8b) varargs — a call to a varargs method with mixed literal arguments.
+    it('(8b) records arguments of a varargs call', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          'class Owner { void find(String... ns) {} }',
+          'class Example {',
+          '  void run(Owner owner) {',
+          '    owner.find("a", "b", "c");',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        expect(fact.methodName).toBe('find');
+        expect(fact.arguments).toHaveLength(3);
+        for (const arg of fact.arguments) {
+          expect(arg.declaredType).toBe('java.lang.String');
+        }
+      } finally {
+        cg.close();
+      }
+    });
+
+    // Negative boundary: annotation-typed receiver must be marked
+    // explicitly incomplete with reason, not silently mis-typed.
+    it('(neg) annotation-typed receiver is marked incomplete, not mis-typed', () => {
+      const filePath = 'demo/Example.java';
+      writeFile(
+        filePath,
+        [
+          'package demo;',
+          '@interface Marker { }',
+          'class Example {',
+          '  void run(Marker owner) {',
+          '    owner.toString();',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      );
+      indexWithRust();
+      const { cg, db } = openGraph();
+      try {
+        const rows = db.prepare(
+          "SELECT metadata FROM unresolved_refs WHERE file_path = ?1 AND reference_kind = 'calls'",
+        ).all(filePath) as Array<{ metadata: string | null }>;
+        expect(rows).toHaveLength(1);
+        const fact = JSON.parse(rows[0].metadata!).zcgJavaCall;
+        // The fact must NOT silently report `demo.Marker` as a fully-complete
+        // receiver; either it marks incomplete with an explicit reason OR it
+        // records the annotation declaredType with evidence that flags the
+        // annotation category. Either way the assertion below forbids a
+        // silent mis-type.
+        if (fact.receiver.complete === true) {
+          expect(fact.receiver.declaredType).not.toBe('demo.Marker');
+        } else {
+          expect(fact.receiver.reason).toBeDefined();
+        }
+      } finally {
+        cg.close();
+      }
+    });
+  });
+
   // Legacy L6467. The @interface DEFINITION half
   // (annotation_type_declaration -> interface + element method) is guarded
   // here; the USAGE half (@MyAnno on a class/field/method -> decorates ref) is
