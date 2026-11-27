@@ -2509,16 +2509,43 @@
       "id": "1-9-15-3",
       "uid": "01a20d75bd61-7f4f1c7b95",
       "label": "Task #2：Java caller/declaration 完整性冻结矩阵",
-      "status": "pending",
+      "status": "completed",
       "mode": "explore",
       "parent": "1-9-15",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "1-9-15-3 切片范围与授权边界如何冻结？",
+          "answer": "范围=Task #2 Java caller/declaration 完整性冻结矩阵（nested scope、shadowing、reassignment、flow-sensitive、same-package、explicit import、JDK 遮蔽、generic/varargs 八类形态）。延续既有 P0b Plan :586-595 全部 A 的 Task #2 切片；隔离树 C:////workspace////github////jununfly////ZCodeGraph-p0b-java-20261123、FLAT 分支 p0b-java-overload-20261123、基础 HEAD a5db457 + 既有 P0a/P0b delta 不变。允许 seam：公开 CodeGraph 红测（indexFiles/sync/collectContext/getCallers/getCallees）、orchestrator.preflightJavaWritesForEvaluation、orchestrator.probePathForEvaluation、既有 extraction/replacement/sdk-rust-hybrid 测试文件新增用例。禁止：访问主库、修改 schema/EXTRACTION_VERSION/NodeKind/EdgeKind/公开协议字段、自动 commit/push/PR、进入 1-9-15-4/5/6 或 P0c/P0d/P1-P3。退出条件：八类形态每类至少有正例+负例+溢出/构造器/annotation 边界的冻结测试与可解释 caller 事实，且 foundation/extraction/index-pipeline/replacement/sdk-rust-hybrid/security+sync+node-sqlite+cli-fallback 全部既有套件不回归、tsc 干净、git diff --check 通过。阶段只输出局部 verified 证据，不宣称 Task #2 完整通过，不进入精确 resolver（Task #3）。",
+          "note": ""
+        },
+        {
+          "q": "冻结矩阵红测首轮覆盖缺口分布如何？",
+          "answer": "11 个用例在 tests/rust-owned-language-fixtures.test.ts 新增 describe 'Java caller/declaration completeness (roadmap 1-9-15-3)' 下。首轮 6 红 5 绿。红：(1) nested scope lexicalDepth=0；(3) reassignment 后 evidence 仍报 method-parameter；(4) 显式 cast 窄化 declaredType=undefined；(7) JDK 遮蔽报 java.lang.String；(8a) generic receiver 报 demo.List<String> 而非擦除后的 java.util.List；(neg) annotation 类型 receiver 被静默标 complete+demo.Marker。绿：(2a) 局部遮蔽参数；(2b) 局部遮蔽字段；(5) same-package；(6) explicit import；(8b) varargs。下一步：在隔离树 crates/zcodegraph-core 的 Java extractor 内逐条修复，每个红测独立小步修复+回归，不改 EXTRACTION_VERSION/NodeKind/EdgeKind/公开协议。",
+          "note": ""
+        },
+        {
+          "q": "六条红测的 Rust 修复落点如何分布？",
+          "answer": "全部位于 crates/zcodegraph-core/src/lib.rs 单文件（30,648 行，Java extractor 集中 10511-12200）。落点：(1) nested scope — java_call_fact_metadata:11564/11578 硬编码 lexicalDepth:0，需新增 java_lexical_depth(invocation) 沿父链数 class_declaration/interface_declaration/enum_declaration/annotation_type_declaration/record_declaration 层数（不含顶层）；(3) reassignment — java_expression_fact identifier 分支在 parameter 命中前未检查是否被本地 reassignment 覆盖，需在 java_local_declared_type 之前先扫 expression_statement/assignment_expression 找左值同名且 start_byte < invocation.start_byte 的赋值，命中则 evidence=reassigned-parameter 或重新走 local-variable 路径；(4) flow-sensitive cast — java_expression_fact 不识别 cast_expression，需新增分支：cast_expression 取 type 字段文本走 java_declared_type，evidence=cast-narrowing；(7) JDK 遮蔽 — java_declared_type:11215 把 String/Integer 硬映射 java.lang.*，需先查 declared_types 命中则返回 package.String（调整顺序：declared_types 命中优先于 JDK 别名表）；(8a) generic receiver — java_declared_type 对 List<String> 直接走 raw.contains('.') 失败 + imports.get('List<String>') 失败 + declared_types 不含 List<String>，最终落到 package_name.List<String>，需先用 java_clean_type_name 擦除泛型再查 imports/declared_types；(neg) annotation receiver — java_declared_types:11116 把 annotation_type_declaration 与 class/interface 一同塞入 declared_types，annotation 名被当普通类，需在 java_expression_fact identifier 路径调用 java_declared_type 后追加 annotation 检测：如果 raw 名对应的顶层 AST 节点是 annotation_type_declaration，返回 complete=false, reason=annotation-typed-receiver。改动只动 java_declared_type / java_expression_fact / java_call_fact_metadata / java_declared_types / 新增 java_lexical_depth 五个函数；不动 schema/EXTRACTION_VERSION/NodeKind/EdgeKind/公开协议字段。",
+          "note": ""
+        },
+        {
+          "q": "8a + 7 修复后 JDK 遮蔽语义如何分层？",
+          "answer": "8a (generic 擦除) 与 7 (JDK 遮蔽) 共用 java_declared_type 函数，已修复并转绿。8a 通过 split_once('<') + trim_end_matches([]) 擦除泛型/数组；7 分两层：(7a) 同文件遮蔽——declared_types 命中优先于 JDK 别名表，转绿；(7b) 跨文件同包遮蔽——AST-only 不可判，测试锁定为 fallback java.lang.String，留给 Task #3 resolver。初版改动曾引入 overload 旧用例回归（uses a visible local declaration...），通过保留 JDK 别名作为终 fallback 修复；最终 java_declared_type 顺序：primitives → 擦除 → 含 . → imports → declared_types → JDK 别名 → package 默认。91/95 通过，旧 overload 套件零回归。",
+          "note": ""
+        },
+        {
+          "q": "冻结矩阵全部转绿的最终修复清单是什么？",
+          "answer": "crates/zcodegraph-core/src/lib.rs 改动函数集：java_declared_type (8a 泛型擦除 + 7 declared_types 优先于 JDK 别名)、java_lexical_depth 新增 (1 nested scope)、java_top_level_ordinary_class 扩展 (1 nested class 不再 return None)、java_expression_fact 新增 cast_expression + parenthesized_expression 分支 (4)、java_declared_annotation_types 新增 + java_guard_annotation_receiver 新增 + java_expression_fact/visit_java_node/extract_java_statement_refs/java_call_fact_metadata 全链接 annotation_types 参数 (neg)、java_is_reassigned_identifier 新增 + identifier parameter 命中后判断 reassigned (3)。tests/rust-owned-language-fixtures.test.ts 新增 describe 'Java caller/declaration completeness (roadmap 1-9-15-3)' 共 12 个用例（含 7a 同文件遮蔽、7b 跨文件遮蔽标记为 Task #3 留待 resolver）。验证：rust-owned-language-fixtures 95/95；extraction 279 + index-pipeline 31 + foundation 105 = 415/415；embedding-replacement+security+sync 80 passed/4 skipped；sdk-rust-hybrid+node-sqlite-backend+rust-index-engine-cli-fallback 42/42；tsc --noEmit 干净；git diff --check 干净。仍未完成：精确 resolver（Task #3 / 1-9-15-4）、固定 Spring 验收（Task #5 / 1-9-15-5）、Standards/Spec 独立复审（1-9-15-6）。不 commit/push/PR，不宣称 Task #2 完整通过——本节点是 v1 envelope 内的 caller/declaration 完整性，不含跨文件同包 JDK 遮蔽、不含精确 overload 解析。",
+          "note": ""
+        }
+      ],
       "notes": "Java caller/declaration 完整性、nested scope、shadowing、reassignment、flow、same-package、explicit import、JDK 遮蔽、generic/varargs 冻结矩阵。已有 declaration envelope 局部实现不代表完整性通过。",
       "layer": "plan",
       "exit_criteria": [
         "冻结矩阵中的声明和 caller 事实完整、可解释，负例/溢出/构造器/annotation 等边界按已批准 Plan 保留证据"
-      ]
+      ],
+      "rounds": 1
     },
     "1-9-15-4": {
       "id": "1-9-15-4",

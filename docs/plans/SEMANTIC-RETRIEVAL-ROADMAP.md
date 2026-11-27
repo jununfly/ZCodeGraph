@@ -757,11 +757,10 @@ promote-via: ADR|design|contract|runtime-evidence
     │   └── [~][X+] 1-8-2. ZJ-0015 执行前置授权
     │   ... 该层还有 1 个兄弟，0 个 in_progress ▸
     ... 该层还有 8 个兄弟，1 个 in_progress ▸
-<details><summary>阻塞链：5 个节点被阻塞</summary>
+<details><summary>阻塞链：4 个节点被阻塞</summary>
 
 - 1-4. 验证 Agent Sufficiency 净收益并审批 opt-in 集成 ← e9: 1-8-2. ZJ-0015 执行前置授权 [~]
 - 1-9-15. P0b Java overload 有界实现 ← e21: 1-8-1. ADR-0011 整体实现债务 [ ], e22: 1-8-2. ZJ-0015 执行前置授权 [~]
-- 1-9-15-4. Task #3：受限 ResolutionAccessModel 与精确 overload resolver ← e18: 1-9-15-3. Task #2：Java caller/declaration 完整性冻结矩阵 [ ]
 - 1-9-15-5. Task #5：固定 Spring baseline/patched 验收与兼容矩阵 ← e19: 1-9-15-4. Task #3：受限 ResolutionAccessModel 与精确 overload resolver [ ]
 - 1-9-15-6. P0b Standards/Spec 独立实施复审 ← e20: 1-9-15-5. Task #5：固定 Spring baseline/patched 验收与兼容矩阵 [ ]
 
