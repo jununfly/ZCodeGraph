@@ -2528,7 +2528,43 @@
       "mode": "explore",
       "parent": "1-9-15",
       "children": [],
-      "decisions": [],
+      "decisions": [
+        {
+          "q": "declared-return 无关类误绑定如何失败闭合？",
+          "answer": "在既有 zcgJavaCall.v1 私有 receiver 事实内保留内层 method-invocation 的嵌套 receiver 和参数，而非修改 schema、版本或公开协议；恢复 return type 前要求内层方法仅匹配其自身 receiver 类型，缺失、malformed、歧义均终态弃权。",
+          "note": "B 双轴复审：无关类同名 self() 定向测试实际生成 confidence=1 的误边；旧实现仅按全局同名方法找返回类型。"
+        },
+        {
+          "q": "declared-return 复审的红绿结果？",
+          "answer": "定向误边测试已转绿，R3 8/8：无关类 self() 弃权，正常跨文件和父类链式仍可解析；不将本结果外推为节点验收。",
+          "note": "嵌套 fact 仍走受限模型；receiver/argument 完整不等于 return type 已恢复，method-invocation 保持 incomplete，由 TS 有界恢复。"
+        },
+        {
+          "q": "JDK 遮蔽过宽如何界定？",
+          "answer": "先红测 unrelated-package 同名 JDK 类不得让当前 receiver 弃权；仅在调用方同包或显式导入造成真实遮蔽时失败闭合，保留现有同包遮蔽用例。",
+          "note": "数组定向复验 R2 11/11 已通过；本决策仅处理类型可见性，不引入完整 Java 语义。"
+        },
+        {
+          "q": "显式导入父类如何纳入有界父类审计？",
+          "answer": "仅从 classNode.filePath 的源码解析当前编译单元的单类型 import，匹配父类简名并要求项目内目标 FQN 唯一；忽略 wildcard/static，歧义或不可读时弃权。",
+          "note": "定向 other.Base 测试已红：resolveJavaOverload 返回 null；同包继承、override、JDK parent 既有测试保留。"
+        },
+        {
+          "q": "其余 Standards/Spec finding 如何收口？",
+          "answer": "显式导入父类红测已转绿，R3 9/9；annotation receiver 属于 Task #2 已实现的终态弃权，不在本节点扩大支持。无关包 JDK 同名测试天然绿色且未进入 shadow guard，故不修改生产 guard，保留其风险说明。",
+          "note": "数组 R2 11/11；后续执行联合及 non-Java 回归，节点不标 completed。"
+        },
+        {
+          "q": "后续双轴复审的可复现边界如何失败闭合？",
+          "answer": "将 16KiB 统一为 UTF-8 bytes；refusal 在同一 batch 内缓存，只有显式 resetBatch 才重新读取；JDK shadow 仅检查调用方同包声明；参数类型按候选声明文件的唯一单类型 import 和同包声明解析；Rust 与 TS 泛型擦除保留数组维度。以上均有红测后修复，不改变 schema、EXTRACTION_VERSION 或公开 ResolutionResult。",
+          "note": "新增 opt-in 实验 flag 注册，默认 false，非法值回退 false；未改图协议。仍在节点内复审，不进入 Spring 或独立验收。"
+        },
+        {
+          "q": "B 复审回归与双轴结论如何收口？",
+          "answer": "最终 Java/resolution 联合 149/149，extraction/version/rust-owned/non-Java 376/376；tsc、cargo check、git diff check 通过。Standards 小范围复核无新增 finding。Spec 小范围复核仅提出未复现的 wildcard/JDK 全量语义、注解 array、generic return token 等边界，不把推测当成已复现缺陷，不在本节点扩张为完整 Java 类型系统。公开事务入口重置 access model，同一事务 refusal 不可被后续 raw 值升级。",
+          "note": "长时无结果的旧双轴任务已取消，替换为限时逐文件复核；节点保持 pending/blocked，不标 completed，不进入 1-9-15-5/6。lib.rs 无 rustfmt diff，仓库格式检查仍有既有未修改文件差异。"
+        }
+      ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
       "layer": "plan",
       "exit_criteria": [
@@ -2570,7 +2606,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-26 20:29:55",
+    "updated": "2026-11-27 18:34:58",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [

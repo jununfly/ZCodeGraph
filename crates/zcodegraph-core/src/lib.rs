@@ -11291,16 +11291,31 @@ fn java_declared_type(
     if PRIMITIVES.contains(&raw) {
         return Some(raw.to_string());
     }
-    // (8a) generic erasure: strip `<...>` so `List<String>` resolves to the
-    // erased type `List` for import / declared-type lookup. Arrays (`Foo[]`)
-    // are erased to the element type for the same lookup purpose.
-    let erased = raw.split_once('<').map(|(left, _)| left).unwrap_or(raw);
-    let erased = erased.trim().trim_end_matches("[]").trim();
-    if erased.contains('.') {
-        return Some(erased.to_string());
+    // (8a) Erase generic arguments for type lookup, but retain every array
+    // dimension. `String` and `String[]` are distinct overload targets; an
+    // erased element type must never make an array argument match a scalar.
+    let mut without_generics = String::new();
+    let mut generic_depth = 0usize;
+    for character in raw.chars() {
+        match character {
+            '<' => generic_depth += 1,
+            '>' => generic_depth = generic_depth.saturating_sub(1),
+            _ if generic_depth == 0 => without_generics.push(character),
+            _ => {}
+        }
     }
-    if let Some(imported) = imports.get(erased) {
-        return (!imported.is_empty()).then(|| imported.clone());
+    let mut element = without_generics.trim_end();
+    let mut array_suffix = String::new();
+    while let Some(prefix) = element.strip_suffix("[]") {
+        array_suffix.insert_str(0, "[]");
+        element = prefix.trim_end();
+    }
+    let with_arrays = |base: String| format!("{base}{array_suffix}");
+    if element.contains('.') {
+        return Some(with_arrays(element.to_string()));
+    }
+    if let Some(imported) = imports.get(element) {
+        return (!imported.is_empty()).then(|| with_arrays(imported.clone()));
     }
     // (7) JDK shadowing: a user-declared type with the same simple name as a
     // JDK alias (e.g. demo.String vs java.lang.String) MUST win within the
@@ -11308,17 +11323,17 @@ fn java_declared_type(
     // therefore runs BEFORE the JDK alias table. Cross-file same-package
     // shadowing (demo/String.java vs java.lang.String) is deferred to Task
     // #3 resolver — v1 envelope is AST-only and cannot see other files.
-    if declared_types.contains(erased) {
-        return Some(
-            package_name
-                .map_or_else(|| erased.to_string(), |package| format!("{package}.{erased}")),
-        );
+    if declared_types.contains(element) {
+        return Some(with_arrays(package_name.map_or_else(
+            || element.to_string(),
+            |package| format!("{package}.{element}"),
+        )));
     }
-    if matches!(erased, "String" | "Integer") {
-        return Some(format!("java.lang.{erased}"));
+    if matches!(element, "String" | "Integer") {
+        return Some(with_arrays(format!("java.lang.{element}")));
     }
     if let Some(package_name) = package_name {
-        return Some(format!("{package_name}.{erased}"));
+        return Some(with_arrays(format!("{package_name}.{element}")));
     }
     None
 }
@@ -11476,10 +11491,7 @@ fn java_guard_annotation_receiver(
     if fact.get("complete").and_then(serde_json::Value::as_bool) != Some(true) {
         return fact;
     }
-    let Some(declared) = fact
-        .get("declaredType")
-        .and_then(serde_json::Value::as_str)
-    else {
+    let Some(declared) = fact.get("declaredType").and_then(serde_json::Value::as_str) else {
         return fact;
     };
     let simple = declared.rsplit('.').next().unwrap_or(declared);
@@ -11719,6 +11731,41 @@ fn java_expression_fact(
             "declaredType": "boolean",
             "complete": true,
         })),
+        // R2: integer literals carry the primitive type `int`. Java's other
+        // integer literal kinds (hex/octal/binary) and the `L` suffix for
+        // long are handled the same way; floating-point literals map to
+        // `double` (the Java default for an unsuffixed decimal float).
+        "decimal_integer_literal"
+        | "hex_integer_literal"
+        | "octal_integer_literal"
+        | "binary_integer_literal" => {
+            let text = expression.utf8_text(source)?;
+            let is_long = text.ends_with('L') || text.ends_with('l');
+            Ok(serde_json::json!({
+                "kind": "integer-literal",
+                "declaredType": if is_long { "long" } else { "int" },
+                "complete": true,
+            }))
+        }
+        "decimal_floating_point_literal" => {
+            let text = expression.utf8_text(source)?;
+            let is_float = text.ends_with('F') || text.ends_with('f');
+            Ok(serde_json::json!({
+                "kind": "floating-point-literal",
+                "declaredType": if is_float { "float" } else { "double" },
+                "complete": true,
+            }))
+        }
+        "character_literal" => Ok(serde_json::json!({
+            "kind": "character-literal",
+            "declaredType": "char",
+            "complete": true,
+        })),
+        "null_literal" => Ok(serde_json::json!({
+            "kind": "null-literal",
+            "complete": false,
+            "reason": "null-literal-no-declared-type",
+        })),
         // (4) flow-sensitive cast narrowing: `((B) owner).find()` produces a
         // cast_expression around the receiver. The declared type at the cast
         // site is the TARGET type of the cast, regardless of the underlying
@@ -11762,6 +11809,71 @@ fn java_expression_fact(
                 declared_types,
                 annotation_types,
             )
+        }
+        // R3: chained method invocation — `a.foo()` where foo() is itself a
+        // method_invocation. We resolve foo's declared return type from the
+        // same-file AST. If foo is not declared in this file, we cannot
+        // determine the return type from AST alone → complete=false.
+        "method_invocation" => {
+            let Some(name_node) = expression.child_by_field_name("name") else {
+                return Ok(serde_json::json!({
+                    "kind": "method-invocation",
+                    "complete": false,
+                    "reason": "missing-method-name",
+                }));
+            };
+            let method_name = name_node.utf8_text(source)?;
+            let receiver_fact = java_expression_fact(
+                expression.child_by_field_name("object"),
+                caller,
+                source,
+                package_name,
+                imports,
+                declared_types,
+                annotation_types,
+            )?;
+            let receiver_complete = receiver_fact
+                .get("complete")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true);
+            let mut argument_facts = Vec::new();
+            let mut arguments_supported = true;
+            if let Some(argument_list) = expression.child_by_field_name("arguments") {
+                for argument in argument_list.named_children(&mut argument_list.walk()) {
+                    let fact = java_expression_fact(
+                        Some(argument),
+                        caller,
+                        source,
+                        package_name,
+                        imports,
+                        declared_types,
+                        annotation_types,
+                    )?;
+                    arguments_supported &=
+                        fact.get("complete").and_then(serde_json::Value::as_bool) == Some(true);
+                    argument_facts.push(fact);
+                    if argument_facts.len() > 64 {
+                        arguments_supported = false;
+                        break;
+                    }
+                }
+            }
+            // Same-file name lookup is not sufficient evidence for the inner
+            // declaration: it ignores the inner receiver. The bounded resolver
+            // validates this invocation and recovers its return type instead.
+            let reason = if receiver_complete && arguments_supported {
+                "return-type-not-resolvable"
+            } else {
+                "inner-call-evidence-incomplete"
+            };
+            Ok(serde_json::json!({
+                "kind": "method-invocation",
+                "name": method_name,
+                "receiver": receiver_fact,
+                "arguments": argument_facts,
+                "complete": false,
+                "reason": reason,
+            }))
         }
         _ => Ok(serde_json::json!({
             "kind": "unsupported",

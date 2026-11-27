@@ -973,10 +973,9 @@ describe('Rust-owned language fixtures (#692 wave 0)', () => {
           Buffer.byteLength(source.split('find(name, true).trim')[0], 'utf8'),
         );
         expect(chained.receiver).toMatchObject({
-          kind: 'unsupported',
-          syntaxKind: 'method_invocation',
+          kind: 'method-invocation',
           complete: false,
-          reason: 'unsupported-expression',
+          reason: 'return-type-not-resolvable',
         });
         expect(chained.complete).toBe(false);
       } finally {

@@ -17,9 +17,9 @@ import {
 const warn = () => undefined;
 
 describe('ZCG flag registry and typed parsing', () => {
-  it('registers exactly the 38 active code environment variables', () => {
-    expect(CODE_FLAG_REGISTRY).toHaveLength(38);
-    expect(new Set(CODE_FLAG_REGISTRY.map(flag => flag.name)).size).toBe(38);
+  it('registers exactly the 39 active code environment variables', () => {
+    expect(CODE_FLAG_REGISTRY).toHaveLength(39);
+    expect(new Set(CODE_FLAG_REGISTRY.map(flag => flag.name)).size).toBe(39);
     expect(FLAG_REGISTRY.every(flag => flag.name.startsWith('ZCG_'))).toBe(true);
     expect(FLAG_REGISTRY.some(flag => flag.name === 'ZCG_INDEX_ENGINE')).toBe(false);
     for (const flag of FLAG_REGISTRY) {

@@ -88,6 +88,12 @@ const flag = (
 export const FLAG_REGISTRY: readonly FlagDefinition[] = [
   flag('ZCG_ENABLE_EMBEDDING', 'product', 'boolean', false),
   flag('ZCG_ENABLE_DATASOURCE', 'product', 'boolean', false),
+  flag('ZCG_ENABLE_JAVA_OVERLOAD', 'experiment', 'boolean', false, 'fallback', {}, undefined, {
+    owner: 'Java resolution maintainers',
+    metric: 'Unique receiver, declaration and argument evidence without loose-fallback edges',
+    evidence: 'tests/java-overload-resolver*.test.ts and tests/resolution-access-model.test.ts',
+    exit: 'Retain opt-in until independent Java acceptance; otherwise remove the bounded resolver',
+  }),
   flag('ZCG_ADAPTIVE_EXPLORE', 'product', 'boolean', true),
   flag('ZCG_EXPLORE_TIGHT_SMALL_PROJECT', 'experiment', 'boolean', false, 'fallback', {}, undefined, {
     owner: 'Explore sizing maintainers',

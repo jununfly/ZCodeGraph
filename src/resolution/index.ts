@@ -4,7 +4,7 @@
  * Coordinates all reference resolution strategies.
  */
 
-import { readIntegerFlag } from '../config/flags';
+import { readBooleanFlag, readIntegerFlag } from '../config/flags';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Node, UnresolvedReference, Edge } from '../types';
@@ -59,6 +59,8 @@ import {
   type RustNameMatcherDecision,
   type RustNameMatcherReference,
 } from './rust-name-matcher';
+import { RestrictedResolutionAccessModel } from './resolution-access-model';
+import { resolveJavaOverload } from './java-overload-resolver';
 
 type ReferenceResolutionTimings = NonNullable<ResolutionResult['stats']['timings']>;
 
@@ -378,6 +380,38 @@ export class ReferenceResolver {
   private workspacePackages: WorkspacePackages | null | undefined = undefined;
   private rustNameMatcherDecisions: Map<string, RustNameMatcherDecision> | null = null;
   private rustNameMatcherCandidates: Map<string, RustNameMatcherReference> | null = null;
+  private javaAccessModel: RestrictedResolutionAccessModel | null = null;
+
+  private javaOverloadEnabled(): boolean {
+    return readBooleanFlag('ZCG_ENABLE_JAVA_OVERLOAD');
+  }
+
+  private getJavaAccessModel(): RestrictedResolutionAccessModel {
+    if (!this.javaAccessModel) {
+      this.javaAccessModel = new RestrictedResolutionAccessModel(this.queries.getDatabase());
+    }
+    return this.javaAccessModel;
+  }
+
+  private prewarmJavaMetadata(refs: UnresolvedRef[]): void {
+    this.getJavaAccessModel().hydrateMetadata(
+      refs
+        .filter((ref) => ref.language === 'java' && ref.referenceKind === 'calls')
+        .map((ref) => ref.rowid)
+        .filter((rowid): rowid is number => rowid !== undefined),
+    );
+  }
+
+  private resolvePreciseJavaCall(ref: UnresolvedRef): ResolvedRef | null {
+    if (!this.javaOverloadEnabled() || ref.language !== 'java' || ref.referenceKind !== 'calls') {
+      return null;
+    }
+    // Missing row identity is an incomplete fact, not permission to use the
+    // loose name matcher. A zcgJavaCall envelope always belongs to a DB row.
+    if (ref.rowid === undefined) return null;
+    const resolution = resolveJavaOverload(ref.rowid, this.getJavaAccessModel(), this.context, ref);
+    return resolution ? { original: ref, ...resolution } : null;
+  }
 
   constructor(projectRoot: string, queries: QueryBuilder) {
     this.projectRoot = projectRoot;
@@ -485,6 +519,7 @@ export class ReferenceResolver {
     this.qualifiedNameCache.clear();
     this.knownNames = null;
     this.knownFiles = null;
+    this.javaAccessModel?.resetBatch();
     this.cachesWarmed = false;
   }
 
@@ -701,6 +736,7 @@ export class ReferenceResolver {
     const total = refs.length;
     let lastReportedPercent = -1;
     this.candidateProvider.prepareFileNodesBatch(refs.map((ref) => ref.filePath));
+    if (this.javaOverloadEnabled()) this.prewarmJavaMetadata(refs);
     this.candidateProvider.prepareRustCandidateProducerRouting(refs);
     this.prewarmGroupedNameMatchingCandidates(refs, timings);
     this.precomputeRustNameMatcherDecisions(refs, timings);
@@ -908,6 +944,12 @@ export class ReferenceResolver {
     if (this.isBuiltInOrExternal(ref)) {
       addElapsed(timings, 'otherResolutionMs', started);
       return null;
+    }
+
+    if (this.javaOverloadEnabled() && ref.language === 'java' && ref.referenceKind === 'calls') {
+      // A Java invocation is terminal for the precise resolver: an abstention
+      // must never become a loose legacy edge on incomplete evidence.
+      return this.resolvePreciseJavaCall(ref);
     }
 
     // Fast pre-filter: skip if no symbol with this name exists anywhere
@@ -1380,6 +1422,7 @@ export class ReferenceResolver {
     onProgress?: (current: number, total: number) => void
   ): ResolutionResult {
     this.resetCandidateProtocolDiagnostics();
+    this.javaAccessModel?.resetBatch();
     const result = this.resolveAll(unresolvedRefs, onProgress);
     if (result.stats.timings) {
       result.stats.timings.candidateProtocol = this.getCandidateProtocolDiagnostics();
@@ -1438,6 +1481,7 @@ export class ReferenceResolver {
   ): Promise<ResolutionResult> {
     let processed = 0;
     this.resetCandidateProtocolDiagnostics();
+    this.javaAccessModel?.resetBatch();
     const aggregateStats = {
       total: 0,
       resolved: 0,
@@ -1453,11 +1497,14 @@ export class ReferenceResolver {
     addElapsed(aggregateStats.timings, 'cacheWarmupMs', databaseStarted);
     this.auditDirectNamedImportSemanticReplay(aggregateStats.timings);
 
-    // Process in batches. We always read from offset 0 because resolved refs
-    // are deleted after each batch, shifting the remaining rows forward.
+    // Terminal rows are deleted after each batch. Precise Java abstentions are
+    // retained, so advance only past those rows instead of repeatedly reading
+    // them at offset 0. After deleting the other terminal rows, every retained
+    // row scanned so far is again contiguous at the head of the table.
+    let retainedJavaRows = 0;
     while (true) {
       databaseStarted = Date.now();
-      const batch = this.queries.getUnresolvedReferencesBatch(0, batchSize);
+      const batch = this.queries.getUnresolvedReferencesBatch(retainedJavaRows, batchSize);
       addElapsed(aggregateStats.timings, 'databaseAccessMs', databaseStarted);
       addElapsed(aggregateStats.timings, 'unresolvedReadMs', databaseStarted);
       addElapsed(aggregateStats.timings, 'unresolvedReadDbMs', databaseStarted);
@@ -1529,7 +1576,12 @@ export class ReferenceResolver {
       // Resolved and intentionally-unresolved refs are both terminal for this
       // pass, so delete them in one rowid batch instead of two transactions.
       const resolvedRefs = result.resolved.map((r) => r.original);
-      const intentionallyUnresolvedRefs = result.unresolved;
+      // Precise Java abstentions are retained like the synchronous entry's
+      // unresolved rows. Their metadata is diagnostic evidence, not a license
+      // for a later loose pass; do not silently erase that evidence here.
+      const intentionallyUnresolvedRefs = result.unresolved.filter((ref) => !(
+        this.javaOverloadEnabled() && ref.language === 'java' && ref.referenceKind === 'calls'
+      ));
       const terminalRefs = [...resolvedRefs, ...intentionallyUnresolvedRefs];
       if (terminalRefs.length > 0) {
         const cleanupStarted = Date.now();
@@ -1562,14 +1614,18 @@ export class ReferenceResolver {
       processed += batch.length;
       onProgress?.(processed, total);
 
+      // A short batch that deleted terminal rows has reached the end of the
+      // table. If every row was retained, advance past this short batch and
+      // let the following empty read terminate the scan.
+      if (batch.length < batchSize && terminalRefs.length > 0) break;
+
+      const retainedJavaRowsInBatch = result.unresolved.filter((ref) =>
+        this.javaOverloadEnabled() && ref.language === 'java' && ref.referenceKind === 'calls'
+      ).length;
+      retainedJavaRows += retainedJavaRowsInBatch;
+
       // Yield so progress UI can render between batches
       await new Promise(resolve => setImmediate(resolve));
-
-      // If nothing was resolved or removed in this batch, we'd loop forever
-      // on the same rows. Break to avoid infinite loop.
-      if (result.resolved.length === 0 && result.unresolved.length === batch.length) {
-        break;
-      }
     }
 
     // Dynamic-edge synthesis: now that all base `calls` edges are persisted,
