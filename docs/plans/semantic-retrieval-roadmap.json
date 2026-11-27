@@ -2590,6 +2590,11 @@
           "q": "B 复审回归与双轴结论如何收口？",
           "answer": "最终 Java/resolution 联合 149/149，extraction/version/rust-owned/non-Java 376/376；tsc、cargo check、git diff check 通过。Standards 小范围复核无新增 finding。Spec 小范围复核仅提出未复现的 wildcard/JDK 全量语义、注解 array、generic return token 等边界，不把推测当成已复现缺陷，不在本节点扩张为完整 Java 类型系统。公开事务入口重置 access model，同一事务 refusal 不可被后续 raw 值升级。",
           "note": "长时无结果的旧双轴任务已取消，替换为限时逐文件复核；节点保持 pending/blocked，不标 completed，不进入 1-9-15-5/6。lib.rs 无 rustfmt diff，仓库格式检查仍有既有未修改文件差异。"
+        },
+        {
+          "q": "1-9-15-4 直接交付后的 PR 收尾如何选择？",
+          "answer": "Human 选 A：接受 e864080 与 merge 32ff335 已直接进入 origin/main 的交付结果，不创建空 PR，不执行 mainline revert/reapply。当前无本地或远端 p0b-java 功能分支可删除，main 保留。主工作区已有未提交 roadmap、草稿及 tmp/ 不覆盖、不清理。此决定仅结束交付流程，不验收节点，不进入 1-9-15-5/6。",
+          "note": ""
         }
       ],
       "notes": "受限 ResolutionAccessModel.getMetadata()、私有 hydration、pre-prewarm 三态路由、唯一精确匹配、父类审计、declared-return、终态弃权、legacy fallback 阻断及 malformed metadata；需回归 Kotlin、P0a Python 和 non-Java resolver。",
@@ -2633,7 +2638,7 @@
   },
   "metadata": {
     "created": "2026-11-02 21:49:01",
-    "updated": "2026-11-27 18:34:58",
+    "updated": "2026-11-27 19:22:18",
     "md_file": "SEMANTIC-RETRIEVAL-ROADMAP.md"
   },
   "edges": [
